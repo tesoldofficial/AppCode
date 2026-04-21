@@ -1,76 +1,372 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-const sidebarThreads = [
+const MINUTE = 60 * 1000;
+const MAX_THREAD_TITLE_LENGTH = 48;
+const runtimeNow = Date.now();
+
+const initialFolders = [
   {
-    id: "proxy",
+    id: "root-codex",
+    kind: "root",
+    name: "codex-agent",
+    displayPath: "~/code/codex-agent",
+    parentId: null,
+    expanded: true,
+    order: 0,
+    source: "demo",
+  },
+  {
+    id: "folder-backend",
+    kind: "folder",
+    name: "Backend разработка",
+    parentId: "root-codex",
+    expanded: true,
+    order: 0,
+    source: "demo",
+  },
+  {
+    id: "folder-auth-gateway",
+    kind: "folder",
+    name: "Auth gateway",
+    parentId: "folder-backend",
+    expanded: true,
+    order: 1,
+    source: "demo",
+  },
+  {
+    id: "folder-release-audit",
+    kind: "folder",
+    name: "Release audit",
+    parentId: "folder-backend",
+    expanded: true,
+    order: 2,
+    source: "demo",
+  },
+  {
+    id: "folder-frontend",
+    kind: "folder",
+    name: "Frontend дизайн",
+    parentId: "root-codex",
+    expanded: true,
+    order: 3,
+    source: "demo",
+  },
+  {
+    id: "root-web",
+    kind: "root",
+    name: "web-app",
+    displayPath: "~/projects/web-app",
+    parentId: null,
+    expanded: true,
+    order: 1,
+    source: "demo",
+  },
+  {
+    id: "folder-checkout",
+    kind: "folder",
+    name: "Checkout flows",
+    parentId: "root-web",
+    expanded: true,
+    order: 0,
+    source: "demo",
+  },
+  {
+    id: "folder-analytics",
+    kind: "folder",
+    name: "Analytics",
+    parentId: "root-web",
+    expanded: false,
+    order: 1,
+    source: "demo",
+  },
+  {
+    id: "root-partner",
+    kind: "root",
+    name: "partner-portal",
+    displayPath: "~/workspace/partner-portal",
+    parentId: null,
+    expanded: false,
+    order: 2,
+    source: "demo",
+  },
+  {
+    id: "folder-onboarding",
+    kind: "folder",
+    name: "Onboarding",
+    parentId: "root-partner",
+    expanded: false,
+    order: 0,
+    source: "demo",
+  },
+];
+
+const initialThreads = [
+  {
+    id: "thread-proxy",
+    folderId: "folder-backend",
     title: "Реализация proxy системы",
-    subtitle: "Добавить поддержку HTTP_PROXY...",
-    time: "2м назад",
     status: "orange",
-    active: true,
+    favorite: false,
+    updatedAt: runtimeNow - 2 * MINUTE,
+    messages: [
+      {
+        id: "thread-proxy-user-1",
+        role: "user",
+        content: "Создай дизайн приложения-агента похожий на Codex App с синими акцентами",
+        createdAt: runtimeNow - 30 * MINUTE,
+      },
+      {
+        id: "thread-proxy-assistant-1",
+        role: "assistant",
+        content: [
+          "Создаю современный дизайн приложения-агента с темной темой и синими акцентами. Основные компоненты:",
+          "Левая боковая панель для проектов и чатов",
+          "Центральная область для диалогов",
+          "Композер для ввода сообщений",
+          "Темная цветовая схема с синими акцентами (#3b82f6)",
+        ],
+        createdAt: runtimeNow - 29 * MINUTE,
+      },
+      {
+        id: "thread-proxy-user-2",
+        role: "user",
+        content: "Сделай input более smooth и перенеси runtime-контролы внутрь нижней панели.",
+        createdAt: runtimeNow - 27 * MINUTE,
+      },
+      {
+        id: "thread-proxy-assistant-2",
+        role: "assistant",
+        content: [
+          "Нижнюю панель перестраиваю в духе desktop-compose toolbar:",
+          "слева quick actions и режим доступа",
+          "справа модель, effort, context и круглая send-кнопка",
+          "сам инпут делаю мягче и с большим радиусом",
+        ],
+        createdAt: runtimeNow - 26 * MINUTE,
+      },
+      {
+        id: "thread-proxy-user-3",
+        role: "user",
+        content: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
+        createdAt: runtimeNow - 24 * MINUTE,
+      },
+      {
+        id: "thread-proxy-assistant-3",
+        role: "assistant",
+        content: [
+          "Добавляю демонстрационный поток сообщений, чтобы центральная колонка ощущалась как реальная переписка, а не как статичный скрин.",
+          "Скролл остаётся только у chat-area, composer закреплён внизу и всегда доступен.",
+        ],
+        createdAt: runtimeNow - 23 * MINUTE,
+      },
+    ],
   },
   {
-    id: "mcp",
+    id: "thread-mcp",
+    folderId: "folder-backend",
     title: "Настройка MCP серверов",
-    subtitle: "Интеграция с Linear и GitHub...",
-    time: "1ч назад",
     status: "green",
-    active: false,
+    favorite: false,
+    updatedAt: runtimeNow - 65 * MINUTE,
+    messages: [
+      {
+        id: "thread-mcp-user-1",
+        role: "user",
+        content: "Собери MCP конфиг для Linear и GitHub, чтобы он был безопасен для прототипа.",
+        createdAt: runtimeNow - 96 * MINUTE,
+      },
+      {
+        id: "thread-mcp-assistant-1",
+        role: "assistant",
+        content: [
+          "Подготовил безопасный минимальный состав MCP-подключений для демо.",
+          "Linear и GitHub вынесены в отдельные подключения с явными зонами ответственности.",
+          "UI в прототипе может показывать их как разные контексты проекта.",
+        ],
+        createdAt: runtimeNow - 95 * MINUTE,
+      },
+    ],
+  },
+  {
+    id: "thread-auth",
+    folderId: "folder-auth-gateway",
+    title: "Ротация service token",
+    status: "green",
+    favorite: true,
+    updatedAt: runtimeNow - 18 * MINUTE,
+    messages: [
+      {
+        id: "thread-auth-user-1",
+        role: "user",
+        content: "Разбей ротацию сервисного токена на безопасные шаги без downtime.",
+        createdAt: runtimeNow - 54 * MINUTE,
+      },
+      {
+        id: "thread-auth-assistant-1",
+        role: "assistant",
+        content: [
+          "Разложил миграцию на две фазы: выпуск нового секрета и мягкое переключение клиентов.",
+          "Параллельно держим старый токен валидным, пока метрики не покажут полное переключение.",
+        ],
+        createdAt: runtimeNow - 53 * MINUTE,
+      },
+    ],
+  },
+  {
+    id: "thread-release",
+    folderId: "folder-release-audit",
+    title: "Ревью регресса релиза",
+    status: "orange",
+    favorite: false,
+    updatedAt: runtimeNow - 42 * MINUTE,
+    messages: [
+      {
+        id: "thread-release-user-1",
+        role: "user",
+        content: "Собери короткий список блокеров перед вечерним релизом.",
+        createdAt: runtimeNow - 82 * MINUTE,
+      },
+      {
+        id: "thread-release-assistant-1",
+        role: "assistant",
+        content: [
+          "Собрал pre-release список и разбил риски на блокеры и деградации.",
+          "Главный фокус: сеть, миграции конфигурации и откат на stage-stand.",
+        ],
+        createdAt: runtimeNow - 80 * MINUTE,
+      },
+    ],
+  },
+  {
+    id: "thread-landing",
+    folderId: "folder-frontend",
+    title: "Редизайн hero-блока",
+    status: "green",
+    favorite: false,
+    updatedAt: runtimeNow - 155 * MINUTE,
+    messages: [
+      {
+        id: "thread-landing-user-1",
+        role: "user",
+        content: "Сделай hero более дорогим по ощущению, без перегруза.",
+        createdAt: runtimeNow - 188 * MINUTE,
+      },
+      {
+        id: "thread-landing-assistant-1",
+        role: "assistant",
+        content: [
+          "Сместил акцент в типографику и воздух, вместо тяжёлых карточек.",
+          "Главное впечатление теперь создают контраст, ритм и большие смысловые паузы.",
+        ],
+        createdAt: runtimeNow - 186 * MINUTE,
+      },
+    ],
+  },
+  {
+    id: "thread-hydration",
+    folderId: "root-web",
+    title: "SSR hydration fixes",
+    status: "green",
+    favorite: true,
+    updatedAt: runtimeNow - 14 * MINUTE,
+    messages: [
+      {
+        id: "thread-hydration-user-1",
+        role: "user",
+        content: "Поймай причины hydration mismatch в web-app и предложи безопасный фикс.",
+        createdAt: runtimeNow - 38 * MINUTE,
+      },
+      {
+        id: "thread-hydration-assistant-1",
+        role: "assistant",
+        content: [
+          "Сузил mismatch до client-only timestamps и условного рендера виджета.",
+          "Для прототипа хватит стабильного SSR значения и отложенного client patch после mount.",
+        ],
+        createdAt: runtimeNow - 37 * MINUTE,
+      },
+    ],
+  },
+  {
+    id: "thread-checkout",
+    folderId: "folder-checkout",
+    title: "Брошенные корзины",
+    status: "orange",
+    favorite: false,
+    updatedAt: runtimeNow - 205 * MINUTE,
+    messages: [
+      {
+        id: "thread-checkout-user-1",
+        role: "user",
+        content: "Покажи, как лучше восстанавливать checkout после refresh.",
+        createdAt: runtimeNow - 235 * MINUTE,
+      },
+      {
+        id: "thread-checkout-assistant-1",
+        role: "assistant",
+        content: [
+          "Для UX лучше сохранять восстановимый шаг и корзину, но не transient UI state.",
+          "Переоткрытие checkout должно возвращать пользователя на ближайший валидный шаг.",
+        ],
+        createdAt: runtimeNow - 232 * MINUTE,
+      },
+    ],
+  },
+  {
+    id: "thread-analytics",
+    folderId: "folder-analytics",
+    title: "События воронки",
+    status: "green",
+    favorite: false,
+    updatedAt: runtimeNow - 360 * MINUTE,
+    messages: [
+      {
+        id: "thread-analytics-user-1",
+        role: "user",
+        content: "Собери новую воронку по checkout и drop-off.",
+        createdAt: runtimeNow - 420 * MINUTE,
+      },
+      {
+        id: "thread-analytics-assistant-1",
+        role: "assistant",
+        content: [
+          "Разделил funnel на переходы по шагам, отмены и возвраты после ошибки.",
+          "В таком виде панель аналитики легче сопоставить с живым UI checkout.",
+        ],
+        createdAt: runtimeNow - 418 * MINUTE,
+      },
+    ],
+  },
+  {
+    id: "thread-onboarding",
+    folderId: "folder-onboarding",
+    title: "Первый run для партнёра",
+    status: "green",
+    favorite: false,
+    updatedAt: runtimeNow - 510 * MINUTE,
+    messages: [
+      {
+        id: "thread-onboarding-user-1",
+        role: "user",
+        content: "Подготовь сценарий первого запуска для нового партнёрского кабинета.",
+        createdAt: runtimeNow - 545 * MINUTE,
+      },
+      {
+        id: "thread-onboarding-assistant-1",
+        role: "assistant",
+        content: [
+          "Сценарий разбит на импорт данных, привязку ролей и первую проверку доступов.",
+          "Для прототипа это хороший пример отдельной корневой папки с собственной структурой.",
+        ],
+        createdAt: runtimeNow - 540 * MINUTE,
+      },
+    ],
   },
 ];
 
-const chatMessages = [
-  {
-    id: "user-1",
-    type: "user",
-    text: "Создай дизайн приложения-агента похожий на Codex App с синими акцентами",
-    time: "14:30",
-  },
-  {
-    id: "assistant-1",
-    type: "assistant",
-    text: [
-      "Создаю современный дизайн приложения-агента с темной темой и синими акцентами. Основные компоненты:",
-      "Левая боковая панель для проектов и чатов",
-      "Центральная область для диалогов",
-      "Композер для ввода сообщений",
-      "Темная цветовая схема с синими акцентами (#3b82f6)",
-    ],
-    time: "14:31",
-  },
-  {
-    id: "user-2",
-    type: "user",
-    text: "Сделай input более smooth и перенеси runtime-контролы внутрь нижней панели.",
-    time: "14:33",
-  },
-  {
-    id: "assistant-2",
-    type: "assistant",
-    text: [
-      "Нижнюю панель перестраиваю в духе desktop-compose toolbar:",
-      "слева quick actions и режим доступа",
-      "справа модель, effort, context и круглая send-кнопка",
-      "сам инпут делаю мягче и с большим радиусом",
-    ],
-    time: "14:34",
-  },
-  {
-    id: "user-3",
-    type: "user",
-    text: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
-    time: "14:36",
-  },
-  {
-    id: "assistant-3",
-    type: "assistant",
-    text: [
-      "Добавляю демонстрационный поток сообщений, чтобы центральная колонка ощущалась как реальная переписка, а не как статичный скрин.",
-      "Скролл остаётся только у chat-area, composer закреплён внизу и всегда доступен.",
-    ],
-    time: "14:37",
-  },
-];
+const initialFolderDrafts = {
+  "folder:folder-release-audit": "Собери список рисков перед вечерним релизом и отдельно выдели блокеры.",
+};
 
 const permissionOptions = [
   { id: "default", label: "Default permissions" },
@@ -100,6 +396,342 @@ const continueOptions = [
   { id: "web", label: "Connect Codex web", disabled: false },
   { id: "cloud", label: "Send to cloud", disabled: true },
 ];
+
+let runtimeId = 0;
+
+function makeId(prefix) {
+  runtimeId += 1;
+  return `${prefix}-${runtimeId}`;
+}
+
+function formatRelativeTime(timestamp) {
+  const delta = Math.max(Date.now() - timestamp, 0);
+  const minutes = Math.floor(delta / MINUTE);
+
+  if (minutes < 1) {
+    return "сейчас";
+  }
+
+  if (minutes < 60) {
+    return `${minutes}м назад`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours}ч назад`;
+  }
+
+  const days = Math.floor(hours / 24);
+  return `${days}д назад`;
+}
+
+function formatChatTime(timestamp) {
+  return new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(timestamp);
+}
+
+function getSelectedLabel(options, selectedId) {
+  return options.find((option) => option.id === selectedId)?.label ?? "";
+}
+
+function trimThreadTitle(input) {
+  const normalized = input.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return "Новый чат";
+  }
+
+  return normalized.length > MAX_THREAD_TITLE_LENGTH
+    ? `${normalized.slice(0, MAX_THREAD_TITLE_LENGTH - 1)}…`
+    : normalized;
+}
+
+function createUserMessage(text) {
+  return {
+    id: makeId("message"),
+    role: "user",
+    content: text,
+    createdAt: Date.now(),
+  };
+}
+
+function createAssistantMessage(text, folderName, isNewThread = false) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const preview = normalized.length > 84 ? `${normalized.slice(0, 83)}…` : normalized;
+
+  return {
+    id: makeId("message"),
+    role: "assistant",
+    content: isNewThread
+      ? [
+          `Создал новый чат в папке «${folderName}» и зафиксировал первую постановку.`,
+          `Стартовый запрос: ${preview}`,
+          "Дальше можно уточнять детали прямо в этом треде, а дерево слева уже отражает новый контекст.",
+        ]
+      : [
+          `Принял обновление для папки «${folderName}».`,
+          `Последний запрос: ${preview}`,
+          "Продолжаю обсуждение в этом треде и держу контекст в рамках выбранной папки.",
+        ],
+    createdAt: Date.now() + 1000,
+  };
+}
+
+function sortThreadsForFolder(threads, folderId) {
+  return threads
+    .filter((thread) => thread.folderId === folderId)
+    .sort((left, right) => right.updatedAt - left.updatedAt);
+}
+
+function sortFoldersForParent(folders, parentId) {
+  return folders
+    .filter((folder) => folder.parentId === parentId)
+    .sort((left, right) => left.order - right.order);
+}
+
+function countDirectThreads(folderId, threads) {
+  return threads.filter((thread) => thread.folderId === folderId).length;
+}
+
+function countThreadsInFolderTree(folderId, folders, threads) {
+  let total = 0;
+  const queue = [folderId];
+
+  while (queue.length > 0) {
+    const currentFolderId = queue.shift();
+    total += threads.filter((thread) => thread.folderId === currentFolderId).length;
+
+    folders.forEach((folder) => {
+      if (folder.parentId === currentFolderId) {
+        queue.push(folder.id);
+      }
+    });
+  }
+
+  return total;
+}
+
+function expandFolderLineage(folders, folderId) {
+  const expandedIds = new Set();
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  let currentId = folderId;
+
+  while (currentId) {
+    expandedIds.add(currentId);
+    currentId = folderById.get(currentId)?.parentId ?? null;
+  }
+
+  return folders.map((folder) =>
+    expandedIds.has(folder.id) && !folder.expanded ? { ...folder, expanded: true } : folder,
+  );
+}
+
+function getNextFolderOrder(folders, parentId) {
+  return (
+    folders
+      .filter((folder) => folder.parentId === parentId)
+      .reduce((maxOrder, folder) => Math.max(maxOrder, folder.order), -1) + 1
+  );
+}
+
+function getFolderTargetKey(folderId) {
+  return `folder:${folderId}`;
+}
+
+function getFolderById(folders, folderId) {
+  return folders.find((folder) => folder.id === folderId) ?? null;
+}
+
+function getThreadById(threads, threadId) {
+  return threads.find((thread) => thread.id === threadId) ?? null;
+}
+
+function getFolderTrail(folderId, folders) {
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  const trail = [];
+  let currentId = folderId;
+
+  while (currentId) {
+    const folder = folderById.get(currentId);
+
+    if (!folder) {
+      break;
+    }
+
+    trail.push(folder.name);
+    currentId = folder.parentId;
+  }
+
+  return trail.reverse();
+}
+
+function getTopLevelVisibleFolderId(rootFolderId, folders, threads) {
+  let currentFolderId = rootFolderId;
+
+  while (true) {
+    const childFolders = sortFoldersForParent(folders, currentFolderId);
+    const hasDirectThreads = countDirectThreads(currentFolderId, threads) > 0;
+
+    if (hasDirectThreads || childFolders.length !== 1) {
+      return currentFolderId;
+    }
+
+    currentFolderId = childFolders[0].id;
+  }
+}
+
+function buildFolderDisplayPath(folderId, folders) {
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+  const trail = [];
+  let currentFolderId = folderId;
+  let rootDisplayPath = null;
+
+  while (currentFolderId) {
+    const folder = folderById.get(currentFolderId);
+
+    if (!folder) {
+      break;
+    }
+
+    if (folder.kind === "root") {
+      rootDisplayPath = folder.displayPath ?? "Folder via Files";
+      break;
+    }
+
+    trail.push(folder.name);
+    currentFolderId = folder.parentId;
+  }
+
+  if (!rootDisplayPath) {
+    return "Folder via Files";
+  }
+
+  if (trail.length === 0) {
+    return rootDisplayPath;
+  }
+
+  return `${rootDisplayPath}/${trail.reverse().join("/")}`;
+}
+
+function getDraftTarget(targetKey, folders, pendingFolderTargets) {
+  if (targetKey.startsWith("folder:")) {
+    const folderId = targetKey.slice("folder:".length);
+    const folder = getFolderById(folders, folderId);
+
+    if (!folder) {
+      return null;
+    }
+
+    return {
+      key: targetKey,
+      kind: "folder",
+      folderId,
+      folder,
+      label: folder.name,
+    };
+  }
+
+  return pendingFolderTargets.find((target) => target.key === targetKey) ?? null;
+}
+
+async function findFolderByHandle(handle, folders) {
+  for (const folder of folders) {
+    if (!folder.handle) {
+      continue;
+    }
+
+    if (await folder.handle.isSameEntry(handle)) {
+      return folder;
+    }
+  }
+
+  return null;
+}
+
+async function findPendingTargetByHandle(handle, pendingTargets) {
+  for (const target of pendingTargets) {
+    if (await target.handle.isSameEntry(handle)) {
+      return target;
+    }
+  }
+
+  return null;
+}
+
+async function findClosestVisibleHandleAncestor(handle, folders) {
+  let closestFolder = null;
+  let closestDepth = Number.POSITIVE_INFINITY;
+
+  for (const folder of folders) {
+    if (!folder.handle) {
+      continue;
+    }
+
+    const relativePath = await folder.handle.resolve(handle);
+
+    if (Array.isArray(relativePath) && relativePath.length > 0 && relativePath.length < closestDepth) {
+      closestFolder = folder;
+      closestDepth = relativePath.length;
+    }
+  }
+
+  return closestFolder;
+}
+
+async function normalizeHandleFolderHierarchy(folders) {
+  const normalizedFolders = [...folders];
+  const folderById = new Map(normalizedFolders.map((folder) => [folder.id, folder]));
+
+  for (const folder of normalizedFolders) {
+    if (!folder.handle) {
+      continue;
+    }
+
+    let closestAncestor = null;
+    let closestDepth = Number.POSITIVE_INFINITY;
+
+    for (const candidate of normalizedFolders) {
+      if (candidate.id === folder.id || !candidate.handle) {
+        continue;
+      }
+
+      const relativePath = await candidate.handle.resolve(folder.handle);
+
+      if (Array.isArray(relativePath) && relativePath.length > 0 && relativePath.length < closestDepth) {
+        closestAncestor = candidate;
+        closestDepth = relativePath.length;
+      }
+    }
+
+    const currentFolder = folderById.get(folder.id);
+    const nextParentId = closestAncestor?.id ?? null;
+    const nextKind = nextParentId ? "folder" : "root";
+
+    if (currentFolder.parentId !== nextParentId || currentFolder.kind !== nextKind) {
+      const nextFolder = {
+        ...currentFolder,
+        parentId: nextParentId,
+        kind: nextKind,
+      };
+
+      folderById.set(folder.id, nextFolder);
+    }
+  }
+
+  return normalizedFolders.map((folder) => folderById.get(folder.id) ?? folder);
+}
+
+function getKeyActionHandler(action) {
+  return (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      action();
+    }
+  };
+}
 
 function SearchIcon() {
   return (
@@ -220,6 +852,41 @@ function CloudOffIcon() {
   );
 }
 
+function StarIcon({ filled = false }) {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="m8 2.3 1.5 3.1 3.4.5-2.5 2.4.6 3.4L8 10.1l-3 1.6.6-3.4L3 5.9l3.4-.5L8 2.3Z"
+        fill={filled ? "currentColor" : "none"}
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.15"
+      />
+    </svg>
+  );
+}
+
+function MessagePlusIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M3.4 3.2h9.2c.8 0 1.4.6 1.4 1.4v5.4c0 .8-.6 1.4-1.4 1.4H7l-2.6 2v-2H3.4c-.8 0-1.4-.6-1.4-1.4V4.6c0-.8.6-1.4 1.4-1.4Z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.2"
+      />
+      <path
+        d="M8 5.2v3.6M6.2 7h3.6"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.2"
+      />
+    </svg>
+  );
+}
+
 function ExternalArrowIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -269,20 +936,6 @@ function ChevronRightIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path d="m6 4 4 4-4 4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.35" />
-    </svg>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        d="M2.5 4.4h3.2l1.3 1.6h6.5v5.7c0 .8-.6 1.3-1.3 1.3H3.8c-.7 0-1.3-.5-1.3-1.3V5.7c0-.8.6-1.3 1.3-1.3Z"
-        fill="none"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth="1.2"
-      />
     </svg>
   );
 }
@@ -342,21 +995,6 @@ function BranchIcon() {
   );
 }
 
-function SendIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        d="M13.7 2.4 2.7 7.2l4.2 1.7 1.7 4.7 5.1-11.2Zm-6.8 6.5 6.2-6.2"
-        fill="none"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.2"
-      />
-    </svg>
-  );
-}
-
 function ArrowUpIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -393,10 +1031,6 @@ function ToggleSwitch({ checked }) {
       <span className="toggle-switch__thumb" />
     </span>
   );
-}
-
-function getSelectedLabel(options, selectedId) {
-  return options.find((option) => option.id === selectedId)?.label ?? "";
 }
 
 function ComposerMenu({ title, options, selectedId, onSelect, className = "", showIcons = false }) {
@@ -525,20 +1159,157 @@ function QuickActionsMenu({
   );
 }
 
-function TreeThread({ thread }) {
+function ThreadRow({ thread, isActive, onSelect, onToggleFavorite }) {
   return (
-    <article className={thread.active ? "thread-row thread-row--active" : "thread-row"}>
+    <article
+      className={isActive ? "thread-row thread-row--active" : "thread-row"}
+      role="button"
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={getKeyActionHandler(onSelect)}
+    >
       <span className="thread-row__icon">
         <MessageIcon />
       </span>
+
       <div className="thread-row__content">
         <div className="thread-row__title">
           <strong>{thread.title}</strong>
+          <button
+            className={thread.favorite ? "thread-row__favorite thread-row__favorite--active" : "thread-row__favorite"}
+            type="button"
+            aria-label={thread.favorite ? "Убрать из избранного" : "Добавить в избранное"}
+            aria-pressed={thread.favorite}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleFavorite();
+            }}
+          >
+            <StarIcon filled={thread.favorite} />
+          </button>
+        </div>
+
+        <div className="thread-row__meta">
+          <span className="thread-row__time">{formatRelativeTime(thread.updatedAt)}</span>
           <span className={`presence-dot presence-dot--${thread.status}`} />
         </div>
-        <span className="thread-row__time">{thread.time}</span>
       </div>
     </article>
+  );
+}
+
+function FolderTree({
+  folder,
+  folders,
+  threads,
+  activeThreadId,
+  displayPath,
+  renderAsRoot,
+  onToggleExpanded,
+  onOpenDraft,
+  onSelectThread,
+  onToggleFavorite,
+}) {
+  const directThreads = sortThreadsForFolder(threads, folder.id);
+  const childFolders = sortFoldersForParent(folders, folder.id);
+  const totalThreads = countThreadsInFolderTree(folder.id, folders, threads);
+  const isRoot = renderAsRoot;
+  const toggleFolder = () => onToggleExpanded(folder.id);
+  const openDraft = () => onOpenDraft(folder.id);
+
+  return (
+    <section className={isRoot ? "project-entry" : "folder-row"}>
+      <div
+        className={isRoot ? "project-entry__head project-entry__head--interactive" : "folder-row__head"}
+        role="button"
+        tabIndex={0}
+        onClick={toggleFolder}
+        onKeyDown={getKeyActionHandler(toggleFolder)}
+      >
+        {isRoot ? (
+          <>
+            <div className="project-entry__meta">
+              <span className="tree-icon tree-icon--small">
+                {folder.expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+              </span>
+              <div className="project-entry__text">
+                <strong>{folder.name}</strong>
+                <p>{displayPath ?? buildFolderDisplayPath(folder.id, folders)}</p>
+              </div>
+            </div>
+
+            <div className="project-entry__actions">
+              <button
+                className="folder-quick-button folder-quick-button--root"
+                type="button"
+                aria-label={`Создать чат в папке ${folder.name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openDraft();
+                }}
+              >
+                <MessagePlusIcon />
+              </button>
+
+              <span className="count-badge">{totalThreads}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="folder-row__title-wrap">
+              <span className="tree-icon tree-icon--small">
+                {folder.expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+              </span>
+              <span className="folder-row__title">{folder.name}</span>
+            </div>
+
+            <div className="folder-row__actions">
+              <button
+                className="folder-quick-button"
+                type="button"
+                aria-label={`Создать чат в папке ${folder.name}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openDraft();
+                }}
+              >
+                <MessagePlusIcon />
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {folder.expanded ? (
+        <div className={isRoot ? "folder-children folder-children--root" : "folder-children"}>
+          {directThreads.map((thread) => (
+            <ThreadRow
+              key={thread.id}
+              thread={thread}
+              isActive={thread.id === activeThreadId}
+              onSelect={() => onSelectThread(thread.id)}
+              onToggleFavorite={() => onToggleFavorite(thread.id)}
+            />
+          ))}
+
+          {childFolders.map((childFolder) => (
+            <FolderTree
+              key={childFolder.id}
+              folder={childFolder}
+              folders={folders}
+              threads={threads}
+              activeThreadId={activeThreadId}
+              displayPath={null}
+              renderAsRoot={false}
+              onToggleExpanded={onToggleExpanded}
+              onOpenDraft={onOpenDraft}
+              onSelectThread={onSelectThread}
+              onToggleFavorite={onToggleFavorite}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -560,12 +1331,12 @@ function MessageMeta({ time, align = "left" }) {
   );
 }
 
-function UserMessage({ text, time }) {
+function UserMessage({ content, time }) {
   return (
     <div className="chat-item chat-item--user">
       <div className="message-row">
         <div className="user-message-block">
-          <div className="user-message">{text}</div>
+          <div className="user-message">{content}</div>
           <MessageMeta time={time} align="right" />
         </div>
 
@@ -575,21 +1346,77 @@ function UserMessage({ text, time }) {
   );
 }
 
-function AssistantMessage({ text, time }) {
-  const [lead, ...rest] = text;
+function AssistantMessage({ content, time }) {
+  const lines = Array.isArray(content) ? content : [content];
+  const [lead, ...rest] = lines;
 
   return (
     <div className="chat-item chat-item--assistant">
       <article className="assistant-message">
         <p>{lead}</p>
-        <ul>
-          {rest.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
+
+        {rest.length > 0 ? (
+          <ul>
+            {rest.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        ) : null}
       </article>
 
       <MessageMeta time={time} />
+    </div>
+  );
+}
+
+function EmptyCanvas({ target, folders, draftValue }) {
+  if (!target) {
+    return null;
+  }
+
+  const hasTypedDraft = draftValue.trim().length > 0;
+
+  if (target.kind === "folder") {
+    const folderTrail = getFolderTrail(target.folderId, folders).join(" / ");
+
+    return (
+      <div className="empty-canvas">
+        <span className="empty-canvas__eyebrow">Новый чат</span>
+        <h2 className="empty-canvas__title">{target.label}</h2>
+        <p className="empty-canvas__description">
+          Чат появится слева только после первого сообщения. Пока это пустой холст, привязанный к выбранной папке.
+        </p>
+        <p className="empty-canvas__path">{folderTrail}</p>
+        <p className="empty-canvas__note">
+          {hasTypedDraft
+            ? "Несохранённый текст уже лежит в composer и вернётся при повторном открытии этой же папки."
+            : "Нажми на plus у этой папки снова — откроется тот же самый пустой draft, а не новый дубль."}
+        </p>
+      </div>
+    );
+  }
+
+  const ancestorFolder = target.closestVisibleHandleFolderId
+    ? getFolderById(folders, target.closestVisibleHandleFolderId)
+    : null;
+
+  return (
+    <div className="empty-canvas">
+      <span className="empty-canvas__eyebrow">Новый чат из Files</span>
+      <h2 className="empty-canvas__title">{target.name}</h2>
+      <p className="empty-canvas__description">
+        Папка ещё не отображается слева. После первого сообщения она появится в дереве и получит свой первый тред.
+      </p>
+      <p className="empty-canvas__path">
+        {ancestorFolder
+          ? `Будет добавлена внутрь «${ancestorFolder.name}» как ближайшая видимая leaf-папка.`
+          : "Будет добавлена как отдельный верхнеуровневый проект в левой панели."}
+      </p>
+      <p className="empty-canvas__note">
+        {hasTypedDraft
+          ? "Несохранённый input уже привязан к этой выбранной папке и восстановится, если выбрать её снова."
+          : "Даже пустой draft уже закреплён за выбранной папкой: повторный выбор откроет его же, без создания дублей."}
+      </p>
     </div>
   );
 }
@@ -651,7 +1478,12 @@ function resizeComposer(chatArea, composerBox, composerFooter, composerInput) {
 }
 
 export default function App() {
-  const [prompt, setPrompt] = useState("");
+  const [folders, setFolders] = useState(() => initialFolders);
+  const [threads, setThreads] = useState(() => initialThreads);
+  const [threadDrafts, setThreadDrafts] = useState(() => ({}));
+  const [folderDrafts, setFolderDrafts] = useState(() => initialFolderDrafts);
+  const [pendingFolderTargets, setPendingFolderTargets] = useState(() => []);
+  const [activePane, setActivePane] = useState(() => ({ type: "thread", threadId: "thread-proxy" }));
   const [openMenu, setOpenMenu] = useState(null);
   const [includeIdeContext, setIncludeIdeContext] = useState(true);
   const [planMode, setPlanMode] = useState(false);
@@ -674,6 +1506,41 @@ export default function App() {
   const composerInputRef = useRef(null);
   const chatScrollIndicatorTimeoutRef = useRef(null);
   const chatScrollDragStateRef = useRef(null);
+  const foldersRef = useRef(folders);
+  const pendingFolderTargetsRef = useRef(pendingFolderTargets);
+
+  useEffect(() => {
+    foldersRef.current = folders;
+  }, [folders]);
+
+  useEffect(() => {
+    pendingFolderTargetsRef.current = pendingFolderTargets;
+  }, [pendingFolderTargets]);
+
+  const rootFolders = sortFoldersForParent(folders, null);
+  const visibleSidebarRoots = rootFolders.map((rootFolder) => {
+    const visibleFolderId = getTopLevelVisibleFolderId(rootFolder.id, folders, threads);
+    const visibleFolder = getFolderById(folders, visibleFolderId) ?? rootFolder;
+
+    return {
+      id: rootFolder.id,
+      folder: visibleFolder,
+      displayPath: buildFolderDisplayPath(visibleFolder.id, folders),
+    };
+  });
+  const activeThread = activePane.type === "thread" ? getThreadById(threads, activePane.threadId) : null;
+  const activeDraftTarget = activePane.type === "draft" ? getDraftTarget(activePane.targetKey, folders, pendingFolderTargets) : null;
+  const activeComposerText =
+    activePane.type === "thread"
+      ? threadDrafts[activePane.threadId] ?? ""
+      : activePane.type === "draft"
+        ? folderDrafts[activePane.targetKey] ?? ""
+        : "";
+  const isDirectoryPickerAvailable =
+    typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
+  const selectedPermissionLabel = getSelectedLabel(permissionOptions, selectedPermission);
+  const selectedModelLabel = getSelectedLabel(modelOptions, selectedModel);
+  const selectedReasoningLabel = getSelectedLabel(reasoningOptions, selectedReasoning);
 
   useLayoutEffect(() => {
     resizeComposer(
@@ -682,7 +1549,7 @@ export default function App() {
       composerFooterRef.current,
       composerInputRef.current,
     );
-  }, [prompt]);
+  }, [activeComposerText]);
 
   useLayoutEffect(() => {
     const chatArea = chatAreaRef.current;
@@ -736,7 +1603,7 @@ export default function App() {
       observer.disconnect();
       window.removeEventListener("resize", updateIndicator);
     };
-  }, []);
+  }, [activeThread?.id, activeDraftTarget?.key, threads]);
 
   useEffect(() => {
     if (chatScrollIndicatorTimeoutRef.current) {
@@ -832,9 +1699,236 @@ export default function App() {
     };
   }, []);
 
-  const selectedPermissionLabel = getSelectedLabel(permissionOptions, selectedPermission);
-  const selectedModelLabel = getSelectedLabel(modelOptions, selectedModel);
-  const selectedReasoningLabel = getSelectedLabel(reasoningOptions, selectedReasoning);
+  const handleToggleExpanded = (folderId) => {
+    startTransition(() => {
+      setFolders((currentFolders) =>
+        currentFolders.map((folder) =>
+          folder.id === folderId ? { ...folder, expanded: !folder.expanded } : folder,
+        ),
+      );
+    });
+  };
+
+  const handleSelectThread = (threadId) => {
+    startTransition(() => {
+      setActivePane({ type: "thread", threadId });
+    });
+  };
+
+  const openDraftForFolder = (folderId) => {
+    startTransition(() => {
+      setFolders((currentFolders) => expandFolderLineage(currentFolders, folderId));
+      setActivePane({ type: "draft", targetKey: getFolderTargetKey(folderId) });
+    });
+  };
+
+  const handleToggleFavorite = (threadId) => {
+    startTransition(() => {
+      setThreads((currentThreads) =>
+        currentThreads.map((thread) =>
+          thread.id === threadId ? { ...thread, favorite: !thread.favorite } : thread,
+        ),
+      );
+    });
+  };
+
+  const handleComposerChange = (nextValue) => {
+    if (activePane.type === "thread") {
+      setThreadDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [activePane.threadId]: nextValue,
+      }));
+      return;
+    }
+
+    if (activePane.type === "draft") {
+      setFolderDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [activePane.targetKey]: nextValue,
+      }));
+    }
+  };
+
+  const materializePendingTargetFolder = async (target) => {
+    const currentFolders = foldersRef.current;
+    const exactFolder = await findFolderByHandle(target.handle, currentFolders);
+
+    if (exactFolder) {
+      return {
+        folderId: exactFolder.id,
+        nextFolders: expandFolderLineage(currentFolders, exactFolder.id),
+      };
+    }
+
+    const closestAncestor = await findClosestVisibleHandleAncestor(target.handle, currentFolders);
+    const newFolderId = makeId("folder");
+    const nextFolder = {
+      id: newFolderId,
+      kind: closestAncestor ? "folder" : "root",
+      name: target.name,
+      displayPath: closestAncestor ? null : "Files folder",
+      parentId: closestAncestor?.id ?? null,
+      expanded: true,
+      order: getNextFolderOrder(currentFolders, closestAncestor?.id ?? null),
+      source: "picker",
+      handle: target.handle,
+    };
+
+    let nextFolders = [...currentFolders, nextFolder];
+    nextFolders = await normalizeHandleFolderHierarchy(nextFolders);
+    nextFolders = expandFolderLineage(nextFolders, newFolderId);
+
+    return {
+      folderId: newFolderId,
+      nextFolders,
+    };
+  };
+
+  const handleOpenFolderPicker = async () => {
+    if (!isDirectoryPickerAvailable) {
+      return;
+    }
+
+    try {
+      const directoryHandle = await window.showDirectoryPicker();
+      const currentFolders = foldersRef.current;
+      const currentPendingTargets = pendingFolderTargetsRef.current;
+      const exactFolder = await findFolderByHandle(directoryHandle, currentFolders);
+
+      if (exactFolder) {
+        openDraftForFolder(exactFolder.id);
+        return;
+      }
+
+      const existingPendingTarget = await findPendingTargetByHandle(directoryHandle, currentPendingTargets);
+
+      if (existingPendingTarget) {
+        startTransition(() => {
+          setActivePane({ type: "draft", targetKey: existingPendingTarget.key });
+        });
+        return;
+      }
+
+      const closestVisibleHandleFolder = await findClosestVisibleHandleAncestor(directoryHandle, currentFolders);
+      const nextTarget = {
+        key: makeId("pending-folder"),
+        kind: "pending-folder",
+        name: directoryHandle.name,
+        handle: directoryHandle,
+        closestVisibleHandleFolderId: closestVisibleHandleFolder?.id ?? null,
+      };
+
+      startTransition(() => {
+        setPendingFolderTargets((currentTargets) => [...currentTargets, nextTarget]);
+        setActivePane({ type: "draft", targetKey: nextTarget.key });
+      });
+    } catch (error) {
+      if (error?.name !== "AbortError") {
+        console.error(error);
+      }
+    }
+  };
+
+  const handleSendMessage = async () => {
+    const normalizedMessage = activeComposerText.trim();
+
+    if (!normalizedMessage) {
+      return;
+    }
+
+    if (activePane.type === "thread") {
+      const targetThread = getThreadById(threads, activePane.threadId);
+
+      if (!targetThread) {
+        return;
+      }
+
+      const targetFolder = getFolderById(folders, targetThread.folderId);
+      const userMessage = createUserMessage(normalizedMessage);
+      const assistantMessage = createAssistantMessage(normalizedMessage, targetFolder?.name ?? "чат");
+      const nextUpdatedAt = assistantMessage.createdAt;
+
+      startTransition(() => {
+        setThreads((currentThreads) =>
+          currentThreads.map((thread) =>
+            thread.id === activePane.threadId
+              ? {
+                  ...thread,
+                  updatedAt: nextUpdatedAt,
+                  messages: [...thread.messages, userMessage, assistantMessage],
+                }
+              : thread,
+          ),
+        );
+
+        setThreadDrafts((currentDrafts) => ({
+          ...currentDrafts,
+          [activePane.threadId]: "",
+        }));
+      });
+
+      return;
+    }
+
+    if (activePane.type !== "draft") {
+      return;
+    }
+
+    const draftTarget = getDraftTarget(activePane.targetKey, foldersRef.current, pendingFolderTargetsRef.current);
+
+    if (!draftTarget) {
+      return;
+    }
+
+    let resolvedFolderId = draftTarget.folderId ?? null;
+    let nextFolders = foldersRef.current;
+
+    if (draftTarget.kind === "pending-folder") {
+      const materializedFolder = await materializePendingTargetFolder(draftTarget);
+      resolvedFolderId = materializedFolder.folderId;
+      nextFolders = materializedFolder.nextFolders;
+    } else if (draftTarget.kind === "folder") {
+      nextFolders = expandFolderLineage(foldersRef.current, draftTarget.folderId);
+    }
+
+    if (!resolvedFolderId) {
+      return;
+    }
+
+    const targetFolder = getFolderById(nextFolders, resolvedFolderId);
+    const nextThreadId = makeId("thread");
+    const userMessage = createUserMessage(normalizedMessage);
+    const assistantMessage = createAssistantMessage(normalizedMessage, targetFolder?.name ?? "чат", true);
+    const nextThread = {
+      id: nextThreadId,
+      folderId: resolvedFolderId,
+      title: trimThreadTitle(normalizedMessage),
+      status: threads.length % 2 === 0 ? "orange" : "green",
+      favorite: false,
+      updatedAt: assistantMessage.createdAt,
+      messages: [userMessage, assistantMessage],
+    };
+
+    startTransition(() => {
+      setFolders(nextFolders);
+      setThreads((currentThreads) => [...currentThreads, nextThread]);
+      setFolderDrafts((currentDrafts) => ({
+        ...currentDrafts,
+        [activePane.targetKey]: "",
+      }));
+      setPendingFolderTargets((currentTargets) =>
+        currentTargets.filter((target) => target.key !== activePane.targetKey),
+      );
+      setActivePane({ type: "thread", threadId: nextThreadId });
+    });
+  };
+
+  const handleComposerKeyDown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      void handleSendMessage();
+    }
+  };
 
   const handleChatScrollThumbPointerDown = (event) => {
     const chatContent = chatContentRef.current;
@@ -870,6 +1964,11 @@ export default function App() {
     document.body.style.userSelect = "none";
   };
 
+  const activeThreadMessages = activeThread?.messages ?? [];
+  const composerPlaceholder =
+    activePane.type === "draft" ? "Напишите первое сообщение, чтобы создать чат..." : "Спросите у агента что-нибудь...";
+  const sendButtonDisabled = activeComposerText.trim().length === 0;
+
   return (
     <div className="app-root">
       <div className="window-caption">Дизайн приложения-агента</div>
@@ -895,80 +1994,61 @@ export default function App() {
           <div className="sidebar-body">
             <div className="sidebar-section-label sidebar-section-label--tight">
               <span>Новый чат</span>
-              <button className="tiny-icon-button" type="button" aria-label="Новый чат">
+              <button
+                className="tiny-icon-button"
+                type="button"
+                aria-label="Новый чат"
+                disabled={!isDirectoryPickerAvailable}
+                onClick={() => {
+                  void handleOpenFolderPicker();
+                }}
+              >
                 <PlusIcon />
               </button>
             </div>
 
             <section className="tree-block">
-              <div className="project-entry">
-                <div className="project-entry__head">
-                  <div className="project-entry__meta">
-                    <span className="tree-icon tree-icon--small">
-                      <ChevronDownIcon />
-                    </span>
-                    <div className="project-entry__text">
-                      <strong>codex-agent</strong>
-                      <p>~/code/codex-agent</p>
-                    </div>
-                  </div>
-                  <span className="count-badge">3</span>
-                </div>
-
-                <div className="tree-children">
-                  <section className="group-entry group-entry--expanded-last">
-                    <div className="group-entry__head">
-                      <span className="tree-icon tree-icon--small">
-                        <ChevronDownIcon />
-                      </span>
-                      <span>Backend разработка</span>
-                    </div>
-
-                    <div className="group-entry__threads">
-                      {sidebarThreads.map((thread) => (
-                        <TreeThread key={thread.id} thread={thread} />
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="group-entry">
-                    <div className="group-entry__head">
-                      <span className="tree-icon tree-icon--small tree-icon--muted">
-                        <ChevronRightIcon />
-                      </span>
-                      <span>Frontend дизайн</span>
-                    </div>
-                  </section>
-                </div>
-              </div>
-
-              <div className="project-entry project-entry--collapsed">
-                <div className="project-entry__head">
-                  <div className="project-entry__meta">
-                    <span className="tree-icon tree-icon--small tree-icon--muted">
-                      <ChevronRightIcon />
-                    </span>
-                    <div className="project-entry__text">
-                      <strong>web-app</strong>
-                      <p>~/projects/web-app</p>
-                    </div>
-                  </div>
-                  <span className="count-badge">1</span>
-                </div>
-              </div>
+              {visibleSidebarRoots.map((entry) => (
+                <FolderTree
+                  key={entry.id}
+                  folder={entry.folder}
+                  folders={folders}
+                  threads={threads}
+                  activeThreadId={activeThread?.id ?? null}
+                  displayPath={entry.displayPath}
+                  renderAsRoot
+                  onToggleExpanded={handleToggleExpanded}
+                  onOpenDraft={openDraftForFolder}
+                  onSelectThread={handleSelectThread}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+              ))}
             </section>
           </div>
         </aside>
 
         <main className="chat-area" ref={chatAreaRef}>
-          <section className="chat-content" ref={chatContentRef}>
-            {chatMessages.map((message) =>
-              message.type === "user" ? (
-                <UserMessage key={message.id} text={message.text} time={message.time} />
-              ) : (
-                <AssistantMessage key={message.id} text={message.text} time={message.time} />
-              ),
-            )}
+          <section
+            className={activePane.type === "draft" ? "chat-content chat-content--canvas" : "chat-content"}
+            ref={chatContentRef}
+          >
+            {activePane.type === "thread" && activeThread
+              ? activeThreadMessages.map((message) =>
+                  message.role === "user" ? (
+                    <UserMessage
+                      key={message.id}
+                      content={message.content}
+                      time={formatChatTime(message.createdAt)}
+                    />
+                  ) : (
+                    <AssistantMessage
+                      key={message.id}
+                      content={message.content}
+                      time={formatChatTime(message.createdAt)}
+                    />
+                  ),
+                )
+              : <EmptyCanvas target={activeDraftTarget} folders={folders} draftValue={activeComposerText} />}
           </section>
 
           {chatScrollIndicator.visible ? (
@@ -998,9 +2078,10 @@ export default function App() {
               <textarea
                 ref={composerInputRef}
                 className="composer-input"
-                placeholder="Спросите у агента что-нибудь..."
-                value={prompt}
-                onChange={(event) => setPrompt(event.target.value)}
+                placeholder={composerPlaceholder}
+                value={activeComposerText}
+                onChange={(event) => handleComposerChange(event.target.value)}
+                onKeyDown={handleComposerKeyDown}
               />
 
               <div className="composer-footer" ref={composerFooterRef}>
@@ -1144,7 +2225,18 @@ export default function App() {
                     <span>IDE context</span>
                   </button>
 
-                  <button className="composer-send-button" type="button" aria-label="Отправить">
+                  <button
+                    className={
+                      sendButtonDisabled
+                        ? "composer-send-button composer-send-button--disabled"
+                        : "composer-send-button"
+                    }
+                    type="button"
+                    aria-label="Отправить"
+                    onClick={() => {
+                      void handleSendMessage();
+                    }}
+                  >
                     <ArrowUpIcon />
                   </button>
                 </div>
