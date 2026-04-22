@@ -397,6 +397,21 @@ const continueOptions = [
   { id: "cloud", label: "Send to cloud", disabled: true },
 ];
 
+const themeOptions = [
+  {
+    id: "grey",
+    label: "Grey",
+    description: "Холодная графитовая палитра с нейтральными поверхностями.",
+    swatches: ["#202023", "#3a3a3c", "#6f6f73"],
+  },
+  {
+    id: "sand",
+    label: "Sand",
+    description: "Теплый песочный акцент для bubble и composer, как на референсе.",
+    swatches: ["#231f1b", "#c6b7a6", "#8d7b6b"],
+  },
+];
+
 let runtimeId = 0;
 
 function makeId(prefix) {
@@ -1025,6 +1040,20 @@ function CheckIcon() {
   );
 }
 
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="m4 4 8 8M12 4l-8 8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.3"
+      />
+    </svg>
+  );
+}
+
 function ToggleSwitch({ checked }) {
   return (
     <span className={checked ? "toggle-switch toggle-switch--checked" : "toggle-switch"} aria-hidden="true">
@@ -1421,6 +1450,118 @@ function EmptyCanvas({ target, folders, draftValue }) {
   );
 }
 
+function SettingsModal({ isOpen, selectedTheme, onClose, onSelectTheme }) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="settings-modal-layer" role="presentation" onClick={onClose}>
+      <div
+        className="settings-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <aside className="settings-modal__sidebar">
+          <div className="settings-modal__sidebar-title">Settings</div>
+
+          <div className="settings-modal__tablist" role="tablist" aria-label="Settings tabs">
+            <button
+              id="settings-tab-general"
+              className="settings-tab settings-tab--active"
+              type="button"
+              role="tab"
+              aria-selected="true"
+              aria-controls="settings-panel-general"
+            >
+              <span className="settings-tab__icon">
+                <SlidersIcon />
+              </span>
+              <span>General</span>
+            </button>
+          </div>
+        </aside>
+
+        <section
+          id="settings-panel-general"
+          className="settings-modal__content"
+          role="tabpanel"
+          aria-labelledby="settings-tab-general"
+        >
+          <header className="settings-modal__header">
+            <div>
+              <p className="settings-modal__eyebrow">General</p>
+              <h2 id="settings-modal-title">General</h2>
+              <p className="settings-modal__description">
+                Базовые настройки интерфейса прототипа. Пока здесь только смена темы.
+              </p>
+            </div>
+
+            <button
+              className="settings-close-button"
+              type="button"
+              aria-label="Закрыть настройки"
+              onClick={onClose}
+            >
+              <CloseIcon />
+            </button>
+          </header>
+
+          <div className="settings-section">
+            <div className="settings-section__head">
+              <div>
+                <p className="settings-section__eyebrow">Appearance</p>
+                <h3>Theme</h3>
+              </div>
+
+              <p className="settings-section__description">
+                Переключает базовую палитру прототипа между нейтральной и тёплой.
+              </p>
+            </div>
+
+            <div className="theme-options" role="radiogroup" aria-label="Theme">
+              {themeOptions.map((option) => {
+                const isSelected = option.id === selectedTheme;
+
+                return (
+                  <button
+                    key={option.id}
+                    className={isSelected ? "theme-option theme-option--active" : "theme-option"}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => onSelectTheme(option.id)}
+                  >
+                    <span className="theme-option__preview" aria-hidden="true">
+                      {option.swatches.map((swatch) => (
+                        <span key={swatch} className="theme-option__swatch" style={{ background: swatch }} />
+                      ))}
+                    </span>
+
+                    <span className="theme-option__body">
+                      <span className="theme-option__title-row">
+                        <span className="theme-option__label">{option.label}</span>
+                        {isSelected ? <span className="theme-option__status">Active</span> : null}
+                      </span>
+                      <span className="theme-option__description">{option.description}</span>
+                    </span>
+
+                    <span className="theme-option__indicator" aria-hidden="true">
+                      {isSelected ? <CheckIcon /> : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function readChatScrollIndicator(chatContent) {
   if (!chatContent) {
     return { visible: false, atBottom: true, top: 0, height: 0 };
@@ -1491,6 +1632,8 @@ export default function App() {
   const [selectedModel, setSelectedModel] = useState("gpt-5.4");
   const [selectedReasoning, setSelectedReasoning] = useState("high");
   const [selectedContinueMode, setSelectedContinueMode] = useState("local");
+  const [selectedTheme, setSelectedTheme] = useState("grey");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [chatScrollIndicator, setChatScrollIndicator] = useState(() => ({
     visible: false,
     atBottom: true,
@@ -1659,6 +1802,24 @@ export default function App() {
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [openMenu]);
+
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      return undefined;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSettingsOpen]);
 
   useEffect(() => {
     const handlePointerMove = (event) => {
@@ -1930,6 +2091,21 @@ export default function App() {
     }
   };
 
+  const handleToggleSettings = () => {
+    setOpenMenu(null);
+    setIsSettingsOpen((currentValue) => !currentValue);
+  };
+
+  const handleSelectTheme = (themeId) => {
+    if (themeId === selectedTheme) {
+      return;
+    }
+
+    startTransition(() => {
+      setSelectedTheme(themeId);
+    });
+  };
+
   const handleChatScrollThumbPointerDown = (event) => {
     const chatContent = chatContentRef.current;
 
@@ -1970,7 +2146,7 @@ export default function App() {
   const sendButtonDisabled = activeComposerText.trim().length === 0;
 
   return (
-    <div className="app-root">
+    <div className="app-root" data-theme={selectedTheme}>
       <div className="window-caption">Дизайн приложения-агента</div>
 
       <div className="desktop-window">
@@ -1978,7 +2154,13 @@ export default function App() {
           <div className="sidebar-top">
             <div className="sidebar-title-row">
               <h1>Codex Agent</h1>
-              <button className="icon-button" type="button" aria-label="Настройки">
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="Настройки"
+                aria-expanded={isSettingsOpen}
+                onClick={handleToggleSettings}
+              >
                 <GearIcon />
               </button>
             </div>
@@ -2244,6 +2426,13 @@ export default function App() {
             </div>
           </footer>
         </main>
+
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          selectedTheme={selectedTheme}
+          onClose={() => setIsSettingsOpen(false)}
+          onSelectTheme={handleSelectTheme}
+        />
       </div>
     </div>
   );
