@@ -368,6 +368,79 @@ const initialFolderDrafts = {
   "folder:folder-release-audit": "Собери список рисков перед вечерним релизом и отдельно выдели блокеры.",
 };
 
+const initialThreadRenderSurfaces = {
+  "thread-proxy": {
+    isClosed: false,
+    todo: [
+      { id: "proxy-todo-1", label: "Вынести render-window над composer", state: "done" },
+      { id: "proxy-todo-2", label: "Показать split-режим: todo + agents", state: "active" },
+      { id: "proxy-todo-3", label: "Скрывать панель, когда компонентов нет", state: "pending" },
+    ],
+    agents: [
+      {
+        id: "proxy-agent-1",
+        name: "Planner",
+        role: "planner",
+        model: "GPT-5.4",
+        effort: "xhigh",
+        speed: "Fast",
+        status: "success",
+      },
+      {
+        id: "proxy-agent-2",
+        name: "UI agent",
+        role: "designer",
+        model: "GPT-5.4-Mini",
+        effort: "high",
+        speed: "Fast",
+        status: "running",
+      },
+      {
+        id: "proxy-agent-3",
+        name: "Reviewer",
+        role: "reviewer",
+        model: "GPT-5.4-Mini",
+        effort: "medium",
+        speed: "Standart",
+        status: "success",
+      },
+    ],
+  },
+  "thread-mcp": {
+    isClosed: true,
+    todo: [],
+    agents: [
+      {
+        id: "mcp-agent-1",
+        name: "MCP mapper",
+        role: "mapper",
+        model: "GPT-5.4",
+        effort: "xhigh",
+        speed: "Fast",
+        status: "success",
+      },
+      {
+        id: "mcp-agent-2",
+        name: "Policy agent",
+        role: "policy",
+        model: "GPT-5.4-Mini",
+        effort: "medium",
+        speed: "Standart",
+        status: "error",
+      },
+    ],
+  },
+  "thread-auth": {
+    isClosed: false,
+    todo: [
+      { id: "auth-todo-1", label: "Выпустить новый service token", state: "done" },
+      { id: "auth-todo-2", label: "Переключить клиентов без downtime", state: "active" },
+      { id: "auth-todo-3", label: "Подтвердить полное переключение по метрикам", state: "pending" },
+    ],
+    agents: [],
+  },
+};
+
 const permissionOptions = [
   { id: "default", label: "Default permissions" },
   { id: "full", label: "Full access" },
@@ -407,7 +480,7 @@ const themeOptions = [
   {
     id: "sand",
     label: "Sand",
-    description: "Теплый песочный акцент для bubble и composer, как на референсе.",
+    description: "Серо-бежевый акцент для bubble и composer, ближе к desktop Codex.",
     swatches: ["#231f1b", "#c6b7a6", "#8d7b6b"],
   },
 ];
@@ -493,6 +566,97 @@ function createAssistantMessage(text, folderName, isNewThread = false) {
         ],
     createdAt: Date.now() + 1000,
   };
+}
+
+function normalizeRenderSurface(surface) {
+  if (!surface) {
+    return null;
+  }
+
+  const todo = Array.isArray(surface.todo) ? surface.todo : [];
+  const agents = Array.isArray(surface.agents) ? surface.agents : [];
+  const isClosed = Boolean(surface.isClosed);
+
+  if (todo.length === 0 && agents.length === 0) {
+    return null;
+  }
+
+  if (surface.todo === todo && surface.agents === agents && surface.isClosed === isClosed) {
+    return surface;
+  }
+
+  return { isClosed, todo, agents };
+}
+
+function buildThreadRenderSurface(text, folderName, fallbackSurface = null) {
+  const normalized = text.replace(/\s+/g, " ").trim();
+
+  if (!normalized) {
+    return normalizeRenderSurface(fallbackSurface);
+  }
+
+  const wantsTodo = /(todo|туду|задач|чек-?лист|checklist)/i.test(normalized);
+  const wantsAgents = /(agents?|агент|оркестр|executor|исполнител)/i.test(normalized);
+
+  if (!wantsTodo && !wantsAgents) {
+    return normalizeRenderSurface(fallbackSurface);
+  }
+
+  const preview = normalized.length > 62 ? `${normalized.slice(0, 61)}…` : normalized;
+
+  return normalizeRenderSurface({
+    isClosed: false,
+    todo: wantsTodo
+      ? [
+          {
+            id: `${folderName}-todo-1`,
+            label: `Собрать todo-поток для «${folderName}»`,
+            state: "done",
+          },
+          {
+            id: `${folderName}-todo-2`,
+            label: `Разбить запрос на шаги: ${preview}`,
+            state: "active",
+          },
+          {
+            id: `${folderName}-todo-3`,
+            label: "Подготовить итоговый список действий для композера",
+            state: "pending",
+          },
+        ]
+      : [],
+    agents: wantsAgents
+      ? [
+          {
+            id: `${folderName}-agent-1`,
+            name: "Planner",
+            role: "planner",
+            model: "GPT-5.4",
+            effort: "xhigh",
+            speed: "Fast",
+            status: "success",
+          },
+          {
+            id: `${folderName}-agent-2`,
+            name: "Execution",
+            role: "designer",
+            model: "GPT-5.4-Mini",
+            effort: "high",
+            speed: "Fast",
+            status: "running",
+          },
+          {
+            id: `${folderName}-agent-3`,
+            name: "Reviewer",
+            role: "reviewer",
+            model: "GPT-5.4-Mini",
+            effort: "medium",
+            speed: "Standart",
+            status: wantsTodo ? "success" : "error",
+          },
+        ]
+      : [],
+  });
 }
 
 function sortThreadsForFolder(threads, folderId) {
@@ -955,6 +1119,14 @@ function ChevronRightIcon() {
   );
 }
 
+function ChevronUpIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="m4 10 4-4 4 4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.35" />
+    </svg>
+  );
+}
+
 function MessageIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -1188,10 +1360,18 @@ function QuickActionsMenu({
   );
 }
 
-function ThreadRow({ thread, isActive, onSelect, onToggleFavorite }) {
+function ThreadRow({ thread, isActive, isLastItem = false, onSelect, onToggleFavorite }) {
+  const threadRowClassName = [
+    "thread-row",
+    isActive ? "thread-row--active" : null,
+    isLastItem ? "thread-row--last" : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <article
-      className={isActive ? "thread-row thread-row--active" : "thread-row"}
+      className={threadRowClassName}
       role="button"
       tabIndex={0}
       onClick={onSelect}
@@ -1234,6 +1414,7 @@ function FolderTree({
   activeThreadId,
   displayPath,
   renderAsRoot,
+  isLastItem = false,
   onToggleExpanded,
   onOpenDraft,
   onSelectThread,
@@ -1245,9 +1426,14 @@ function FolderTree({
   const isRoot = renderAsRoot;
   const toggleFolder = () => onToggleExpanded(folder.id);
   const openDraft = () => onOpenDraft(folder.id);
+  const folderTreeClassName = isRoot
+    ? "project-entry"
+    : isLastItem
+      ? "folder-row folder-row--last"
+      : "folder-row";
 
   return (
-    <section className={isRoot ? "project-entry" : "folder-row"}>
+    <section className={folderTreeClassName}>
       <div
         className={isRoot ? "project-entry__head project-entry__head--interactive" : "folder-row__head"}
         role="button"
@@ -1311,17 +1497,18 @@ function FolderTree({
 
       {folder.expanded ? (
         <div className={isRoot ? "folder-children folder-children--root" : "folder-children"}>
-          {directThreads.map((thread) => (
+          {directThreads.map((thread, index) => (
             <ThreadRow
               key={thread.id}
               thread={thread}
               isActive={thread.id === activeThreadId}
+              isLastItem={childFolders.length === 0 && index === directThreads.length - 1}
               onSelect={() => onSelectThread(thread.id)}
               onToggleFavorite={() => onToggleFavorite(thread.id)}
             />
           ))}
 
-          {childFolders.map((childFolder) => (
+          {childFolders.map((childFolder, index) => (
             <FolderTree
               key={childFolder.id}
               folder={childFolder}
@@ -1330,6 +1517,7 @@ function FolderTree({
               activeThreadId={activeThreadId}
               displayPath={null}
               renderAsRoot={false}
+              isLastItem={index === childFolders.length - 1}
               onToggleExpanded={onToggleExpanded}
               onOpenDraft={onOpenDraft}
               onSelectThread={onSelectThread}
@@ -1363,13 +1551,11 @@ function MessageMeta({ time, align = "left" }) {
 function UserMessage({ content, time }) {
   return (
     <div className="chat-item chat-item--user">
-      <div className="message-row">
+      <div className="message-row message-row--user">
         <div className="user-message-block">
           <div className="user-message">{content}</div>
           <MessageMeta time={time} align="right" />
         </div>
-
-        <div className="avatar-badge">U</div>
       </div>
     </div>
   );
@@ -1395,6 +1581,147 @@ function AssistantMessage({ content, time }) {
 
       <MessageMeta time={time} />
     </div>
+  );
+}
+
+function TodoSurface({ items }) {
+  return (
+    <section className="todo-surface">
+      <ol className="todo-surface__list">
+        {items.map((item) => (
+          <li key={item.id} className={`todo-surface__item todo-surface__item--${item.state}`}>
+            <span className="todo-surface__bullet" aria-hidden="true" />
+            <span className="todo-surface__label">{item.label}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function AgentsSurface({ items, isClosed = false }) {
+  const speedLabelById = {
+    Fast: "fast",
+    Standart: "standart",
+  };
+  const prioritizedItems = [...items]
+    .map((item, index) => ({ item, index }))
+    .sort((left, right) => {
+      const leftPriority = left.item.status === "running" ? 0 : 1;
+      const rightPriority = right.item.status === "running" ? 0 : 1;
+
+      if (leftPriority !== rightPriority) {
+        return leftPriority - rightPriority;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ item }) => item);
+
+  return (
+    <section className="agents-surface">
+      <ul className="agents-surface__list">
+        {prioritizedItems.map((item) => (
+          <li key={item.id} className="agents-surface__item">
+            <span
+              className={`agents-surface__status agents-surface__status--${item.status}${isClosed ? " agents-surface__status--closed" : ""}`}
+              aria-hidden="true"
+            />
+            <div className="agents-surface__identity">
+              <strong className="agents-surface__name">{item.name}</strong>
+              {item.role ? <span className="agents-surface__role">[{item.role}]</span> : null}
+            </div>
+
+            <div className="agents-surface__details">
+              <span className="agents-surface__meta">{item.model}</span>
+              <span className="agents-surface__meta agents-surface__meta--effort">{item.effort ?? "high"}</span>
+              <span className="agents-surface__meta agents-surface__meta--speed">
+                {speedLabelById[item.speed] ?? String(item.speed).toLowerCase()}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function RenderSurface({ surface, isCollapsed = false, onToggleCollapse }) {
+  const normalizedSurface = normalizeRenderSurface(surface);
+
+  if (!normalizedSurface) {
+    return null;
+  }
+
+  const hasTodo = normalizedSurface.todo.length > 0;
+  const hasAgents = normalizedSurface.agents.length > 0;
+  const completedCount = normalizedSurface.todo.filter((item) => item.state === "done").length;
+  const summary = hasTodo ? `${completedCount} out of ${normalizedSurface.todo.length} tasks completed` : null;
+  const mode = hasTodo && hasAgents ? "split" : hasTodo ? "todo-only" : "agents-only";
+  const isSplitMode = mode === "split";
+  const agentsHeading = hasAgents ? (
+    <div className="render-surface__agents-heading">
+      <span className="agents-surface__count">{normalizedSurface.agents.length}</span>
+      <span className="agents-surface__eyebrow">Agents</span>
+    </div>
+  ) : null;
+  const toggleButton = (
+    <button
+      className={`render-surface__toggle render-surface__toggle--${isSplitMode ? "split" : "single"}`}
+      type="button"
+      aria-label={isCollapsed ? "Раскрыть окно" : "Свернуть окно"}
+      aria-expanded={!isCollapsed}
+      onClick={onToggleCollapse}
+    >
+      {isCollapsed ? <ChevronUpIcon /> : <ChevronDownIcon />}
+    </button>
+  );
+
+  return (
+    <section className={`render-surface render-surface--${mode}${isCollapsed ? " render-surface--collapsed" : ""}`}>
+      {isSplitMode ? (
+        <div className="render-surface__split-layout">
+          {toggleButton}
+          <div className="render-surface__split-column render-surface__split-column--todo">
+            <div className="render-surface__split-heading">
+              <span className="render-surface__summary">{summary}</span>
+            </div>
+            {!isCollapsed ? <TodoSurface items={normalizedSurface.todo} /> : null}
+          </div>
+
+          <div className="render-surface__split-column render-surface__split-column--agents">
+            <div className="render-surface__split-heading">{agentsHeading}</div>
+            {!isCollapsed ? (
+              <AgentsSurface items={normalizedSurface.agents} isClosed={normalizedSurface.isClosed} />
+            ) : null}
+          </div>
+        </div>
+      ) : (
+        <div className="render-surface__single-layout">
+          {toggleButton}
+          <div className="render-surface__header-copy">
+            {summary ? <span className="render-surface__summary">{summary}</span> : null}
+            {!summary ? agentsHeading : null}
+          </div>
+
+          {!isCollapsed ? (
+            <div className={`render-surface__body render-surface__body--${mode}`}>
+              {hasTodo ? (
+                <div className="render-surface__pane render-surface__pane--todo-only">
+                  <TodoSurface items={normalizedSurface.todo} />
+                </div>
+              ) : null}
+
+              {hasAgents ? (
+                <div className="render-surface__pane render-surface__pane--agents-only">
+                  <AgentsSurface items={normalizedSurface.agents} isClosed={normalizedSurface.isClosed} />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -1590,7 +1917,7 @@ function readChatScrollIndicator(chatContent) {
   };
 }
 
-function resizeComposer(chatArea, composerBox, composerFooter, composerInput) {
+function resizeComposer(chatArea, renderSurface, composerBox, composerFooter, composerInput) {
   if (!chatArea || !composerBox || !composerFooter || !composerInput) {
     return;
   }
@@ -1614,7 +1941,15 @@ function resizeComposer(chatArea, composerBox, composerFooter, composerInput) {
   composerInput.style.height = `${clampedHeight}px`;
   composerInput.style.overflowY = nextHeight > maxInputHeight ? "auto" : "hidden";
 
-  const composerReservedSpace = composerBox.offsetHeight + 22;
+  const renderSurfaceHeight = renderSurface?.offsetHeight ?? 0;
+  const renderSurfaceOverlap = renderSurface
+    ? parseFloat(window.getComputedStyle(renderSurface).getPropertyValue("--composer-surface-overlap")) || 0
+    : 0;
+  const composerReservedSpace =
+    composerBox.offsetHeight +
+    renderSurfaceHeight -
+    Math.min(renderSurfaceHeight, renderSurfaceOverlap) +
+    22;
   chatArea.style.setProperty("--composer-reserved-space", `${composerReservedSpace}px`);
 }
 
@@ -1633,6 +1968,8 @@ export default function App() {
   const [selectedReasoning, setSelectedReasoning] = useState("high");
   const [selectedContinueMode, setSelectedContinueMode] = useState("local");
   const [selectedTheme, setSelectedTheme] = useState("grey");
+  const [threadRenderSurfaces, setThreadRenderSurfaces] = useState(() => initialThreadRenderSurfaces);
+  const [collapsedRenderSurfaces, setCollapsedRenderSurfaces] = useState(() => ({}));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [chatScrollIndicator, setChatScrollIndicator] = useState(() => ({
     visible: false,
@@ -1644,6 +1981,7 @@ export default function App() {
   const chatAreaRef = useRef(null);
   const chatContentRef = useRef(null);
   const composerRegionRef = useRef(null);
+  const renderSurfaceRef = useRef(null);
   const composerBoxRef = useRef(null);
   const composerFooterRef = useRef(null);
   const composerInputRef = useRef(null);
@@ -1684,15 +2022,27 @@ export default function App() {
   const selectedPermissionLabel = getSelectedLabel(permissionOptions, selectedPermission);
   const selectedModelLabel = getSelectedLabel(modelOptions, selectedModel);
   const selectedReasoningLabel = getSelectedLabel(reasoningOptions, selectedReasoning);
+  const activeRenderSurface =
+    activePane.type === "thread" ? normalizeRenderSurface(threadRenderSurfaces[activePane.threadId]) : null;
+  const isActiveRenderSurfaceCollapsed =
+    activePane.type === "thread" ? collapsedRenderSurfaces[activePane.threadId] ?? false : false;
 
   useLayoutEffect(() => {
     resizeComposer(
       chatAreaRef.current,
+      renderSurfaceRef.current,
       composerBoxRef.current,
       composerFooterRef.current,
       composerInputRef.current,
     );
-  }, [activeComposerText]);
+  }, [
+    activeComposerText,
+    activePane.type,
+    activeThread?.id,
+    activeDraftTarget?.key,
+    activeRenderSurface,
+    isActiveRenderSurfaceCollapsed,
+  ]);
 
   useLayoutEffect(() => {
     const chatArea = chatAreaRef.current;
@@ -1704,6 +2054,7 @@ export default function App() {
     const handleResize = () =>
       resizeComposer(
         chatAreaRef.current,
+        renderSurfaceRef.current,
         composerBoxRef.current,
         composerFooterRef.current,
         composerInputRef.current,
@@ -1713,13 +2064,19 @@ export default function App() {
 
     const observer = new ResizeObserver(handleResize);
     observer.observe(chatArea);
+    if (composerBoxRef.current) {
+      observer.observe(composerBoxRef.current);
+    }
+    if (renderSurfaceRef.current) {
+      observer.observe(renderSurfaceRef.current);
+    }
     window.addEventListener("resize", handleResize);
 
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", handleResize);
     };
-  }, []);
+  }, [activeThread?.id, activeRenderSurface, isActiveRenderSurfaceCollapsed]);
 
   useEffect(() => {
     const chatContent = chatContentRef.current;
@@ -2026,6 +2383,22 @@ export default function App() {
           ...currentDrafts,
           [activePane.threadId]: "",
         }));
+        setThreadRenderSurfaces((currentSurfaces) => {
+          const nextSurface = buildThreadRenderSurface(
+            normalizedMessage,
+            targetFolder?.name ?? "чат",
+            currentSurfaces[activePane.threadId] ?? null,
+          );
+
+          if (!nextSurface || nextSurface === currentSurfaces[activePane.threadId]) {
+            return currentSurfaces;
+          }
+
+          return {
+            ...currentSurfaces,
+            [activePane.threadId]: nextSurface,
+          };
+        });
       });
 
       return;
@@ -2060,6 +2433,7 @@ export default function App() {
     const nextThreadId = makeId("thread");
     const userMessage = createUserMessage(normalizedMessage);
     const assistantMessage = createAssistantMessage(normalizedMessage, targetFolder?.name ?? "чат", true);
+    const nextRenderSurface = buildThreadRenderSurface(normalizedMessage, targetFolder?.name ?? "чат");
     const nextThread = {
       id: nextThreadId,
       folderId: resolvedFolderId,
@@ -2081,6 +2455,12 @@ export default function App() {
         currentTargets.filter((target) => target.key !== activePane.targetKey),
       );
       setActivePane({ type: "thread", threadId: nextThreadId });
+      if (nextRenderSurface) {
+        setThreadRenderSurfaces((currentSurfaces) => ({
+          ...currentSurfaces,
+          [nextThreadId]: nextRenderSurface,
+        }));
+      }
     });
   };
 
@@ -2094,6 +2474,17 @@ export default function App() {
   const handleToggleSettings = () => {
     setOpenMenu(null);
     setIsSettingsOpen((currentValue) => !currentValue);
+  };
+
+  const handleToggleRenderSurface = () => {
+    if (activePane.type !== "thread") {
+      return;
+    }
+
+    setCollapsedRenderSurfaces((currentState) => ({
+      ...currentState,
+      [activePane.threadId]: !(currentState[activePane.threadId] ?? false),
+    }));
   };
 
   const handleSelectTheme = (themeId) => {
@@ -2256,6 +2647,16 @@ export default function App() {
           <div className="chat-scroll-fade" aria-hidden="true" />
 
           <footer className="composer-region" ref={composerRegionRef}>
+            {activeRenderSurface ? (
+              <div className="render-surface-shell" ref={renderSurfaceRef}>
+                <RenderSurface
+                  surface={activeRenderSurface}
+                  isCollapsed={isActiveRenderSurfaceCollapsed}
+                  onToggleCollapse={handleToggleRenderSurface}
+                />
+              </div>
+            ) : null}
+
             <div className="composer-box" ref={composerBoxRef}>
               <textarea
                 ref={composerInputRef}
