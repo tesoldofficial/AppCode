@@ -2,6 +2,7 @@ import { startTransition, useEffect, useLayoutEffect, useRef, useState } from "r
 
 const MINUTE = 60 * 1000;
 const MAX_THREAD_TITLE_LENGTH = 48;
+const USER_MESSAGE_MAX_WIDTH_RATIO = 2 / 3;
 const runtimeNow = Date.now();
 
 const initialFolders = [
@@ -158,6 +159,48 @@ const initialThreads = [
           "Скролл остаётся только у chat-area, composer закреплён внизу и всегда доступен.",
         ],
         createdAt: runtimeNow - 23 * MINUTE,
+      },
+      {
+        id: "thread-proxy-assistant-4",
+        role: "assistant",
+        content: "Ниже несколько исходящих сообщений разной длины, чтобы проверить ширину bubble, переносы и соседство с аватаром.",
+        createdAt: runtimeNow - 22 * MINUTE,
+      },
+      {
+        id: "thread-proxy-user-4",
+        role: "user",
+        content: "Ок",
+        createdAt: runtimeNow - 21 * MINUTE,
+      },
+      {
+        id: "thread-proxy-user-5",
+        role: "user",
+        content: "Короткий вопрос без переноса.",
+        createdAt: runtimeNow - 20 * MINUTE,
+      },
+      {
+        id: "thread-proxy-user-6",
+        role: "user",
+        content: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
+        createdAt: runtimeNow - 19 * MINUTE,
+      },
+      {
+        id: "thread-proxy-user-7",
+        role: "user",
+        content: "Сравни поведение длинного сообщения с несколькими частями: сначала обычная фраза, потом уточнение в середине и финальный короткий хвост.",
+        createdAt: runtimeNow - 18 * MINUTE,
+      },
+      {
+        id: "thread-proxy-user-8",
+        role: "user",
+        content: "Здесь есть пунктуация, русский текст и English words inside, чтобы проверить ровность строк без ощущения фиксированной ширины.",
+        createdAt: runtimeNow - 17 * MINUTE,
+      },
+      {
+        id: "thread-proxy-assistant-5",
+        role: "assistant",
+        content: "Если bubble выглядит как самостоятельная форма вокруг текста, значит измеритель работает правильно.",
+        createdAt: runtimeNow - 16 * MINUTE,
       },
     ],
   },
@@ -1548,14 +1591,198 @@ function MessageMeta({ time, align = "left" }) {
   );
 }
 
+function normalizeUserMessageContent(content) {
+  return String(content).replace(/\s+/g, " ").trim();
+}
+
+function buildUserMessageWrap(content, font, maxWidth) {
+  const normalizedContent = normalizeUserMessageContent(content);
+
+  if (!normalizedContent || maxWidth <= 0) {
+    return { lines: [normalizedContent], width: null };
+  }
+
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+
+  if (!context) {
+    return { lines: [normalizedContent], width: null };
+  }
+
+  context.font = font;
+
+  const measureText = (text) => context.measureText(text).width;
+  const singleLineWidth = measureText(normalizedContent);
+
+  if (singleLineWidth <= maxWidth) {
+    return { lines: [normalizedContent], width: Math.ceil(singleLineWidth + 1) };
+  }
+
+  const words = normalizedContent.split(" ");
+  const lineWidths = new Map();
+
+  const getLine = (startIndex, endIndex) => words.slice(startIndex, endIndex).join(" ");
+  const getLineWidth = (startIndex, endIndex) => {
+    const key = `${startIndex}:${endIndex}`;
+    const cachedWidth = lineWidths.get(key);
+
+    if (cachedWidth !== undefined) {
+      return cachedWidth;
+    }
+
+    const measuredWidth = measureText(getLine(startIndex, endIndex));
+    lineWidths.set(key, measuredWidth);
+    return measuredWidth;
+  };
+
+  const scoreLines = (lines) => {
+    const widths = lines.map(({ width }) => width);
+    const widestLine = Math.max(...widths);
+    const ascendingPenalty = widths.reduce((penalty, width, index) => {
+      const nextWidth = widths[index + 1];
+      return nextWidth && nextWidth > width ? penalty + (nextWidth - width) : penalty;
+    }, 0);
+    const ragPenalty = widths.reduce((penalty, width) => penalty + Math.abs(widestLine - width), 0);
+
+    return widestLine + ascendingPenalty * 4 + ragPenalty * 0.04;
+  };
+
+  const findBestLines = (targetLineCount) => {
+    const candidates = [];
+
+    const visit = (startIndex, remainingLines, lines) => {
+      if (remainingLines === 1) {
+        const width = getLineWidth(startIndex, words.length);
+
+        if (width <= maxWidth || startIndex === words.length - 1) {
+          candidates.push([...lines, { text: getLine(startIndex, words.length), width }]);
+        }
+
+        return;
+      }
+
+      const lastBreakIndex = words.length - remainingLines + 1;
+
+      for (let endIndex = startIndex + 1; endIndex <= lastBreakIndex; endIndex += 1) {
+        const width = getLineWidth(startIndex, endIndex);
+
+        if (width > maxWidth && endIndex > startIndex + 1) {
+          break;
+        }
+
+        visit(endIndex, remainingLines - 1, [...lines, { text: getLine(startIndex, endIndex), width }]);
+      }
+    };
+
+    visit(0, targetLineCount, []);
+
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    return candidates.reduce((bestCandidate, candidate) =>
+      scoreLines(candidate) < scoreLines(bestCandidate) ? candidate : bestCandidate,
+    );
+  };
+
+  const firstLineCount = Math.max(2, Math.ceil(singleLineWidth / maxWidth));
+  const maxLineCount = Math.min(words.length, firstLineCount + 2);
+
+  for (let lineCount = firstLineCount; lineCount <= maxLineCount; lineCount += 1) {
+    const bestLines = findBestLines(lineCount);
+
+    if (bestLines) {
+      const widestLine = Math.max(...bestLines.map(({ width }) => width));
+      return {
+        lines: bestLines.map(({ text }) => text),
+        width: Math.min(maxWidth, Math.ceil(widestLine + 1)),
+      };
+    }
+  }
+
+  return { lines: [normalizedContent], width: Math.ceil(maxWidth) };
+}
+
 function UserMessage({ content, time }) {
+  const messageBlockRef = useRef(null);
+  const messageRef = useRef(null);
+  const [wrappedMessage, setWrappedMessage] = useState(() => ({
+    lines: [normalizeUserMessageContent(content)],
+    width: null,
+  }));
+
+  useLayoutEffect(() => {
+    const messageBlock = messageBlockRef.current;
+    const message = messageRef.current;
+
+    if (!messageBlock || !message) {
+      return undefined;
+    }
+
+    let isCancelled = false;
+
+    const wrapMessage = () => {
+      if (isCancelled) {
+        return;
+      }
+
+      const messageStyles = window.getComputedStyle(message);
+      const horizontalPadding =
+        (parseFloat(messageStyles.paddingLeft) || 0) + (parseFloat(messageStyles.paddingRight) || 0);
+      const maxBorderBoxWidth = messageBlock.getBoundingClientRect().width * USER_MESSAGE_MAX_WIDTH_RATIO;
+      const maxContentWidth = Math.max(0, maxBorderBoxWidth - horizontalPadding);
+      const nextWrappedMessage = buildUserMessageWrap(content, messageStyles.font, maxContentWidth);
+
+      if (nextWrappedMessage.width) {
+        nextWrappedMessage.width = Math.min(maxBorderBoxWidth, nextWrappedMessage.width + horizontalPadding);
+      }
+
+      setWrappedMessage((currentWrappedMessage) => {
+        const currentLines = currentWrappedMessage.lines.join("\n");
+        const nextLines = nextWrappedMessage.lines.join("\n");
+
+        if (currentLines === nextLines && currentWrappedMessage.width === nextWrappedMessage.width) {
+          return currentWrappedMessage;
+        }
+
+        return nextWrappedMessage;
+      });
+    };
+
+    wrapMessage();
+
+    const resizeObserver = new ResizeObserver(wrapMessage);
+    resizeObserver.observe(messageBlock);
+
+    if (document.fonts) {
+      void document.fonts.ready.then(wrapMessage);
+    }
+
+    return () => {
+      isCancelled = true;
+      resizeObserver.disconnect();
+    };
+  }, [content]);
+
   return (
     <div className="chat-item chat-item--user">
       <div className="message-row message-row--user">
-        <div className="user-message-block">
-          <div className="user-message">{content}</div>
+        <div className="user-message-block" ref={messageBlockRef}>
+          <div
+            className="user-message"
+            ref={messageRef}
+            aria-label={normalizeUserMessageContent(content)}
+            style={wrappedMessage.width ? { inlineSize: `${wrappedMessage.width}px` } : undefined}
+          >
+            {wrappedMessage.lines.map((line, index) => (
+              <span className="user-message__line" key={`${line}-${index}`}>
+                {line}
+              </span>
+            ))}
+          </div>
           <MessageMeta time={time} align="right" />
         </div>
+        <div className="avatar-badge" aria-hidden="true">U</div>
       </div>
     </div>
   );

@@ -26,10 +26,12 @@
   --chat-message-outer-gap: 6px;
   --chat-rail-width: var(--chat-shell-width);
   --chat-assistant-width: calc(var(--chat-rail-width) - (var(--chat-message-outer-gap) * 2));
-  --chat-user-block-width: var(--chat-rail-width);
-  --chat-user-bubble-right-gap: var(--chat-message-outer-gap);
-  --chat-user-bubble-max-width: min(calc(var(--chat-user-block-width) * 0.6667), 36rem);
-  --chat-user-row-width: calc(var(--chat-rail-width) + 52px);
+  --chat-user-avatar-size: 38px;
+  --chat-user-avatar-gap: 14px;
+  --chat-user-row-width: var(--composer-rail-width);
+  --chat-user-block-width: calc(var(--chat-user-row-width) - var(--chat-user-avatar-size) - var(--chat-user-avatar-gap));
+  --chat-user-bubble-right-gap: 0px;
+  --chat-user-bubble-max-width: calc(var(--chat-user-block-width) * 0.6667);
   --composer-surface-overlap: 18px;
   --composer-note-gap: 0px;
   --composer-note-height: 0px;
@@ -716,8 +718,9 @@ svg {
 }
 
 .message-row--user {
-  width: var(--chat-rail-width);
-  gap: 0;
+  align-items: flex-start;
+  width: var(--chat-user-row-width);
+  gap: var(--chat-user-avatar-gap);
 }
 
 .user-message-block {
@@ -728,8 +731,8 @@ svg {
 }
 
 .user-message {
-  inline-size: fit-content;
-  max-inline-size: var(--chat-user-bubble-max-width);
+  inline-size: max-content;
+  max-inline-size: min(100%, var(--chat-user-bubble-max-width));
   box-sizing: border-box;
   align-self: flex-end;
   margin-left: auto;
@@ -745,18 +748,25 @@ svg {
   color: rgba(255, 255, 255, 0.85);
   font-size: 16px;
   line-height: 24px;
-  text-align: right;
+  text-align: left;
+  text-wrap: normal;
+  overflow-wrap: break-word;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.025),
     inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+}
+
+.user-message__line {
+  display: block;
+  white-space: nowrap;
 }
 
 .avatar-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: var(--chat-user-avatar-size);
+  height: var(--chat-user-avatar-size);
   flex: 0 0 auto;
   border-radius: 999px;
   background:
@@ -769,7 +779,6 @@ svg {
   font-weight: 500;
   line-height: 20px;
   color: rgba(255, 255, 255, 0.92);
-  transform: translateY(-10px);
 }
 
 .message-meta {
