@@ -4,6 +4,7 @@ const MINUTE = 60 * 1000;
 const MAX_THREAD_TITLE_LENGTH = 48;
 const USER_MESSAGE_MAX_WIDTH_RATIO = 2 / 3;
 const runtimeNow = Date.now();
+const runtimeMinute = Math.floor(runtimeNow / MINUTE) * MINUTE;
 
 const initialFolders = [
   {
@@ -170,37 +171,61 @@ const initialThreads = [
         id: "thread-proxy-user-4",
         role: "user",
         content: "Ок",
-        createdAt: runtimeNow - 21 * MINUTE,
+        createdAt: runtimeMinute - 21 * MINUTE + 8 * 1000,
       },
       {
         id: "thread-proxy-user-5",
         role: "user",
         content: "Короткий вопрос без переноса.",
-        createdAt: runtimeNow - 20 * MINUTE,
+        createdAt: runtimeMinute - 21 * MINUTE + 22 * 1000,
       },
       {
         id: "thread-proxy-user-6",
         role: "user",
         content: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
-        createdAt: runtimeNow - 19 * MINUTE,
+        createdAt: runtimeMinute - 20 * MINUTE + 8 * 1000,
       },
       {
         id: "thread-proxy-user-7",
         role: "user",
         content: "Сравни поведение длинного сообщения с несколькими частями: сначала обычная фраза, потом уточнение в середине и финальный короткий хвост.",
-        createdAt: runtimeNow - 18 * MINUTE,
+        createdAt: runtimeMinute - 19 * MINUTE + 8 * 1000,
       },
       {
         id: "thread-proxy-user-8",
         role: "user",
         content: "Здесь есть пунктуация, русский текст и English words inside, чтобы проверить ровность строк без ощущения фиксированной ширины.",
-        createdAt: runtimeNow - 17 * MINUTE,
+        createdAt: runtimeMinute - 19 * MINUTE + 34 * 1000,
       },
       {
         id: "thread-proxy-assistant-5",
         role: "assistant",
         content: "Если bubble выглядит как самостоятельная форма вокруг текста, значит измеритель работает правильно.",
         createdAt: runtimeNow - 16 * MINUTE,
+      },
+      {
+        id: "thread-proxy-assistant-6",
+        role: "assistant",
+        content: "Ниже отдельный пример: пользователь пишет несколько сообщений в пределах одной минуты.",
+        createdAt: runtimeMinute - 15 * MINUTE + 5 * 1000,
+      },
+      {
+        id: "thread-proxy-user-9",
+        role: "user",
+        content: "Первое сообщение в пределах одной минуты.",
+        createdAt: runtimeMinute - 14 * MINUTE + 6 * 1000,
+      },
+      {
+        id: "thread-proxy-user-10",
+        role: "user",
+        content: "Сразу дописываю второе, без отдельного времени и кнопок под первым.",
+        createdAt: runtimeMinute - 14 * MINUTE + 24 * 1000,
+      },
+      {
+        id: "thread-proxy-user-11",
+        role: "user",
+        content: "И третье закрывает группу, поэтому время показывается только здесь.",
+        createdAt: runtimeMinute - 14 * MINUTE + 42 * 1000,
       },
     ],
   },
@@ -1573,19 +1598,39 @@ function FolderTree({
   );
 }
 
-function MessageMeta({ time, align = "left" }) {
+function getMessageMinuteKey(message) {
+  return Math.floor(message.createdAt / MINUTE);
+}
+
+function isSameMinuteUserMessage(message, comparisonMessage) {
+  return (
+    message?.role === "user" &&
+    comparisonMessage?.role === "user" &&
+    getMessageMinuteKey(message) === getMessageMinuteKey(comparisonMessage)
+  );
+}
+
+function MessageMeta({ time, align = "left", showCopy = true, showBranch = true }) {
+  const hasActions = showCopy || showBranch;
+
   return (
     <div className={align === "right" ? "message-meta message-meta--right" : "message-meta"}>
       <span className={align === "right" ? "message-time message-time--right" : "message-time"}>
         {time}
-        <span className="message-actions" aria-hidden="true">
-          <button className="message-action-button" type="button" aria-label="Копировать">
-            <CopyIcon />
-          </button>
-          <button className="message-action-button" type="button" aria-label="Ответвить">
-            <BranchIcon />
-          </button>
-        </span>
+        {hasActions ? (
+          <span className="message-actions" aria-hidden="true">
+            {showCopy ? (
+              <button className="message-action-button" type="button" aria-label="Копировать">
+                <CopyIcon />
+              </button>
+            ) : null}
+            {showBranch ? (
+              <button className="message-action-button" type="button" aria-label="Ответвить">
+                <BranchIcon />
+              </button>
+            ) : null}
+          </span>
+        ) : null}
       </span>
     </div>
   );
@@ -1703,7 +1748,7 @@ function buildUserMessageWrap(content, font, maxWidth) {
   return { lines: [normalizedContent], width: Math.ceil(maxWidth) };
 }
 
-function UserMessage({ content, time }) {
+function UserMessage({ content, time, compactTop = false, showAvatar = true, showMeta = true }) {
   const messageBlockRef = useRef(null);
   const messageRef = useRef(null);
   const [wrappedMessage, setWrappedMessage] = useState(() => ({
@@ -1765,7 +1810,7 @@ function UserMessage({ content, time }) {
   }, [content]);
 
   return (
-    <div className="chat-item chat-item--user">
+    <div className={compactTop ? "chat-item chat-item--user chat-item--user-compact" : "chat-item chat-item--user"}>
       <div className="message-row message-row--user">
         <div className="user-message-block" ref={messageBlockRef}>
           <div
@@ -1780,9 +1825,9 @@ function UserMessage({ content, time }) {
               </span>
             ))}
           </div>
-          <MessageMeta time={time} align="right" />
+          {showMeta ? <MessageMeta time={time} align="right" showCopy={false} showBranch={false} /> : null}
         </div>
-        <div className="avatar-badge" aria-hidden="true">U</div>
+        {showAvatar ? <div className="avatar-badge" aria-hidden="true">U</div> : <div className="avatar-spacer" aria-hidden="true" />}
       </div>
     </div>
   );
@@ -1831,6 +1876,11 @@ function AgentsSurface({ items, isClosed = false }) {
     Fast: "fast",
     Standart: "standart",
   };
+  const getSpeedLabel = (speed) => {
+    const speedLabel = speedLabelById[speed] ?? String(speed ?? "").toLowerCase();
+
+    return speedLabel === "standart" || speedLabel === "standard" ? null : speedLabel;
+  };
   const prioritizedItems = [...items]
     .map((item, index) => ({ item, index }))
     .sort((left, right) => {
@@ -1848,26 +1898,30 @@ function AgentsSurface({ items, isClosed = false }) {
   return (
     <section className="agents-surface">
       <ul className="agents-surface__list">
-        {prioritizedItems.map((item) => (
-          <li key={item.id} className="agents-surface__item">
-            <span
-              className={`agents-surface__status agents-surface__status--${item.status}${isClosed ? " agents-surface__status--closed" : ""}`}
-              aria-hidden="true"
-            />
-            <div className="agents-surface__identity">
-              <strong className="agents-surface__name">{item.name}</strong>
-              {item.role ? <span className="agents-surface__role">[{item.role}]</span> : null}
-            </div>
+        {prioritizedItems.map((item) => {
+          const speedLabel = getSpeedLabel(item.speed);
 
-            <div className="agents-surface__details">
-              <span className="agents-surface__meta">{item.model}</span>
-              <span className="agents-surface__meta agents-surface__meta--effort">{item.effort ?? "high"}</span>
-              <span className="agents-surface__meta agents-surface__meta--speed">
-                {speedLabelById[item.speed] ?? String(item.speed).toLowerCase()}
-              </span>
-            </div>
-          </li>
-        ))}
+          return (
+            <li key={item.id} className="agents-surface__item">
+              <span
+                className={`agents-surface__status agents-surface__status--${item.status}${isClosed ? " agents-surface__status--closed" : ""}`}
+                aria-hidden="true"
+              />
+              <div className="agents-surface__identity">
+                <strong className="agents-surface__name">{item.name}</strong>
+                {item.role ? <span className="agents-surface__role">[{item.role}]</span> : null}
+              </div>
+
+              <div className="agents-surface__details">
+                <span className="agents-surface__meta">{item.model}</span>
+                <span className="agents-surface__meta agents-surface__meta--effort">{item.effort ?? "high"}</span>
+                {speedLabel ? (
+                  <span className="agents-surface__meta agents-surface__meta--speed">{speedLabel}</span>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
@@ -2833,12 +2887,18 @@ export default function App() {
             ref={chatContentRef}
           >
             {activePane.type === "thread" && activeThread
-              ? activeThreadMessages.map((message) =>
-                  message.role === "user" ? (
+              ? activeThreadMessages.map((message, index) => {
+                  const previousMessage = activeThreadMessages[index - 1] ?? null;
+                  const nextMessage = activeThreadMessages[index + 1] ?? null;
+
+                  return message.role === "user" ? (
                     <UserMessage
                       key={message.id}
                       content={message.content}
                       time={formatChatTime(message.createdAt)}
+                      compactTop={isSameMinuteUserMessage(message, previousMessage)}
+                      showAvatar={!isSameMinuteUserMessage(message, previousMessage)}
+                      showMeta={!isSameMinuteUserMessage(message, nextMessage)}
                     />
                   ) : (
                     <AssistantMessage
@@ -2846,8 +2906,8 @@ export default function App() {
                       content={message.content}
                       time={formatChatTime(message.createdAt)}
                     />
-                  ),
-                )
+                  );
+                })
               : <EmptyCanvas target={activeDraftTarget} folders={folders} draftValue={activeComposerText} />}
           </section>
 
