@@ -3,434 +3,319 @@ import { startTransition, useEffect, useLayoutEffect, useRef, useState } from "r
 const MINUTE = 60 * 1000;
 const MAX_THREAD_TITLE_LENGTH = 48;
 const USER_MESSAGE_MAX_WIDTH_RATIO = 2 / 3;
+const USER_MESSAGE_WIDTH_GUARD = 6;
 const runtimeNow = Date.now();
 const runtimeMinute = Math.floor(runtimeNow / MINUTE) * MINUTE;
 
-const initialFolders = [
+const NodeType = Object.freeze({
+  PROJECT: "project",
+  CHAT: "chat",
+});
+
+const ChatStatus = Object.freeze({
+  IN_PROGRESS: "orange",
+  DONE: "green",
+});
+
+function minutesAgo(minutes) {
+  return runtimeNow - minutes * MINUTE;
+}
+
+const projectGroups = [
   {
     id: "root-codex",
-    kind: "root",
-    name: "codex-agent",
-    displayPath: "~/code/codex-agent",
-    parentId: null,
+    kind: NodeType.PROJECT,
+    title: "codex-agent",
+    path: "~/code/codex-agent",
     expanded: true,
-    order: 0,
-    source: "demo",
-  },
-  {
-    id: "folder-backend",
-    kind: "folder",
-    name: "Backend разработка",
-    parentId: "root-codex",
-    expanded: true,
-    order: 0,
-    source: "demo",
-  },
-  {
-    id: "folder-auth-gateway",
-    kind: "folder",
-    name: "Auth gateway",
-    parentId: "folder-backend",
-    expanded: true,
-    order: 1,
-    source: "demo",
-  },
-  {
-    id: "folder-release-audit",
-    kind: "folder",
-    name: "Release audit",
-    parentId: "folder-backend",
-    expanded: true,
-    order: 2,
-    source: "demo",
-  },
-  {
-    id: "folder-frontend",
-    kind: "folder",
-    name: "Frontend дизайн",
-    parentId: "root-codex",
-    expanded: true,
-    order: 3,
-    source: "demo",
-  },
-  {
-    id: "root-web",
-    kind: "root",
-    name: "web-app",
-    displayPath: "~/projects/web-app",
-    parentId: null,
-    expanded: true,
-    order: 1,
-    source: "demo",
-  },
-  {
-    id: "folder-checkout",
-    kind: "folder",
-    name: "Checkout flows",
-    parentId: "root-web",
-    expanded: true,
-    order: 0,
-    source: "demo",
-  },
-  {
-    id: "folder-analytics",
-    kind: "folder",
-    name: "Analytics",
-    parentId: "root-web",
-    expanded: false,
-    order: 1,
-    source: "demo",
-  },
-  {
-    id: "root-partner",
-    kind: "root",
-    name: "partner-portal",
-    displayPath: "~/workspace/partner-portal",
-    parentId: null,
-    expanded: false,
-    order: 2,
-    source: "demo",
-  },
-  {
-    id: "folder-onboarding",
-    kind: "folder",
-    name: "Onboarding",
-    parentId: "root-partner",
-    expanded: false,
-    order: 0,
-    source: "demo",
+    items: [
+      {
+        id: "folder-backend",
+        kind: NodeType.PROJECT,
+        title: "Backend разработка",
+        path: "backend-development",
+        expanded: true,
+        items: [
+          {
+            id: "thread-proxy",
+            kind: NodeType.CHAT,
+            title: "Реализация proxy системы",
+            date: minutesAgo(2),
+            status: ChatStatus.IN_PROGRESS,
+            messages: [
+              {
+                id: "thread-proxy-user-1",
+                role: "user",
+                content: "Создай дизайн приложения-агента похожий на Codex App с синими акцентами",
+                createdAt: minutesAgo(30),
+              },
+              {
+                id: "thread-proxy-assistant-1",
+                role: "assistant",
+                content: [
+                  "Создаю современный дизайн приложения-агента с темной темой и синими акцентами. Основные компоненты:",
+                  "Левая боковая панель для проектов и чатов",
+                  "Центральная область для диалогов",
+                  "Композер для ввода сообщений",
+                  "Темная цветовая схема с синими акцентами (#3b82f6)",
+                ],
+                createdAt: minutesAgo(29),
+              },
+              {
+                id: "thread-proxy-user-2",
+                role: "user",
+                content: "Сделай input более smooth и перенеси runtime-контролы внутрь нижней панели.",
+                createdAt: minutesAgo(27),
+              },
+              {
+                id: "thread-proxy-assistant-2",
+                role: "assistant",
+                content: [
+                  "Нижнюю панель перестраиваю в духе desktop-compose toolbar:",
+                  "слева quick actions и режим доступа",
+                  "справа модель, effort, context и круглая send-кнопка",
+                  "сам инпут делаю мягче и с большим радиусом",
+                ],
+                createdAt: minutesAgo(26),
+              },
+              {
+                id: "thread-proxy-user-3",
+                role: "user",
+                content: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
+                createdAt: minutesAgo(24),
+              },
+              {
+                id: "thread-proxy-assistant-3",
+                role: "assistant",
+                content: [
+                  "Добавляю демонстрационный поток сообщений, чтобы центральная колонка ощущалась как реальная переписка, а не как статичный скрин.",
+                  "Скролл остаётся только у chat-area, composer закреплён внизу и всегда доступен.",
+                ],
+                createdAt: minutesAgo(23),
+              },
+              {
+                id: "thread-proxy-assistant-4",
+                role: "assistant",
+                content: "Ниже несколько исходящих сообщений разной длины, чтобы проверить ширину bubble, переносы и соседство с аватаром.",
+                createdAt: minutesAgo(22),
+              },
+              {
+                id: "thread-proxy-user-4",
+                role: "user",
+                content: "Ок",
+                createdAt: runtimeMinute - 21 * MINUTE + 8 * 1000,
+              },
+              {
+                id: "thread-proxy-user-5",
+                role: "user",
+                content: "Короткий вопрос без переноса.",
+                createdAt: runtimeMinute - 21 * MINUTE + 22 * 1000,
+              },
+              {
+                id: "thread-proxy-user-6",
+                role: "user",
+                content: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
+                createdAt: runtimeMinute - 20 * MINUTE + 8 * 1000,
+              },
+              {
+                id: "thread-proxy-user-7",
+                role: "user",
+                content: "Сравни поведение длинного сообщения с несколькими частями: сначала обычная фраза, потом уточнение в середине и финальный короткий хвост.",
+                createdAt: runtimeMinute - 19 * MINUTE + 8 * 1000,
+              },
+              {
+                id: "thread-proxy-user-8",
+                role: "user",
+                content: "Здесь есть пунктуация, русский текст и English words inside, чтобы проверить ровность строк без ощущения фиксированной ширины.",
+                createdAt: runtimeMinute - 19 * MINUTE + 34 * 1000,
+              },
+              {
+                id: "thread-proxy-assistant-5",
+                role: "assistant",
+                content: "Если bubble выглядит как самостоятельная форма вокруг текста, значит измеритель работает правильно.",
+                createdAt: minutesAgo(16),
+              },
+              {
+                id: "thread-proxy-assistant-6",
+                role: "assistant",
+                content: "Ниже отдельный пример: пользователь пишет несколько сообщений в пределах одной минуты.",
+                createdAt: runtimeMinute - 15 * MINUTE + 5 * 1000,
+              },
+              {
+                id: "thread-proxy-user-9",
+                role: "user",
+                content: "Первое сообщение в пределах одной минуты.",
+                createdAt: runtimeMinute - 14 * MINUTE + 6 * 1000,
+              },
+              {
+                id: "thread-proxy-user-10",
+                role: "user",
+                content: "Сразу дописываю второе, без отдельного времени и кнопок под первым.",
+                createdAt: runtimeMinute - 14 * MINUTE + 24 * 1000,
+              },
+              {
+                id: "thread-proxy-user-11",
+                role: "user",
+                content: "И третье закрывает группу, поэтому время показывается только здесь.",
+                createdAt: runtimeMinute - 14 * MINUTE + 42 * 1000,
+              },
+            ],
+          },
+          {
+            id: "thread-mcp",
+            kind: NodeType.CHAT,
+            title: "Настройка MCP серверов",
+            date: minutesAgo(60),
+            status: ChatStatus.DONE,
+            messages: [
+              {
+                id: "thread-mcp-user-1",
+                role: "user",
+                content: "Собери MCP конфиг для Linear и GitHub, чтобы он был безопасен для прототипа.",
+                createdAt: minutesAgo(96),
+              },
+              {
+                id: "thread-mcp-assistant-1",
+                role: "assistant",
+                content: [
+                  "Подготовил безопасный минимальный состав MCP-подключений для демо.",
+                  "Linear и GitHub вынесены в отдельные подключения с явными зонами ответственности.",
+                  "UI в прототипе может показывать их как разные контексты проекта.",
+                ],
+                createdAt: minutesAgo(95),
+              },
+            ],
+          },
+          {
+            id: "folder-auth-gateway",
+            kind: NodeType.PROJECT,
+            title: "Auth gateway",
+            path: "auth-gateway",
+            expanded: true,
+            items: [
+              {
+                id: "thread-auth",
+                kind: NodeType.CHAT,
+                title: "Ротация service token",
+                date: minutesAgo(18),
+                status: ChatStatus.DONE,
+                favorite: true,
+                messages: [
+                  {
+                    id: "thread-auth-user-1",
+                    role: "user",
+                    content: "Разбей ротацию сервисного токена на безопасные шаги без downtime.",
+                    createdAt: minutesAgo(54),
+                  },
+                  {
+                    id: "thread-auth-assistant-1",
+                    role: "assistant",
+                    content: [
+                      "Разложил миграцию на две фазы: выпуск нового секрета и мягкое переключение клиентов.",
+                      "Параллельно держим старый токен валидным, пока метрики не покажут полное переключение.",
+                    ],
+                    createdAt: minutesAgo(53),
+                  },
+                ],
+              },
+              {
+                id: "folder-release-audit",
+                kind: NodeType.PROJECT,
+                title: "Release audit",
+                path: "release-audit",
+                expanded: true,
+                items: [
+                  {
+                    id: "thread-release",
+                    kind: NodeType.CHAT,
+                    title: "Ревью регресса релиза",
+                    date: minutesAgo(42),
+                    status: ChatStatus.IN_PROGRESS,
+                    messages: [
+                      {
+                        id: "thread-release-user-1",
+                        role: "user",
+                        content: "Собери короткий список блокеров перед вечерним релизом.",
+                        createdAt: minutesAgo(82),
+                      },
+                      {
+                        id: "thread-release-assistant-1",
+                        role: "assistant",
+                        content: [
+                          "Собрал pre-release список и разбил риски на блокеры и деградации.",
+                          "Главный фокус: сеть, миграции конфигурации и откат на stage-stand.",
+                        ],
+                        createdAt: minutesAgo(80),
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: "folder-frontend",
+        kind: NodeType.PROJECT,
+        title: "Frontend дизайн",
+        path: "frontend-design",
+        expanded: true,
+        items: [],
+      },
+    ],
   },
 ];
 
-const initialThreads = [
-  {
-    id: "thread-proxy",
-    folderId: "folder-backend",
-    title: "Реализация proxy системы",
-    status: "orange",
-    favorite: false,
-    updatedAt: runtimeNow - 2 * MINUTE,
-    messages: [
-      {
-        id: "thread-proxy-user-1",
-        role: "user",
-        content: "Создай дизайн приложения-агента похожий на Codex App с синими акцентами",
-        createdAt: runtimeNow - 30 * MINUTE,
-      },
-      {
-        id: "thread-proxy-assistant-1",
-        role: "assistant",
-        content: [
-          "Создаю современный дизайн приложения-агента с темной темой и синими акцентами. Основные компоненты:",
-          "Левая боковая панель для проектов и чатов",
-          "Центральная область для диалогов",
-          "Композер для ввода сообщений",
-          "Темная цветовая схема с синими акцентами (#3b82f6)",
-        ],
-        createdAt: runtimeNow - 29 * MINUTE,
-      },
-      {
-        id: "thread-proxy-user-2",
-        role: "user",
-        content: "Сделай input более smooth и перенеси runtime-контролы внутрь нижней панели.",
-        createdAt: runtimeNow - 27 * MINUTE,
-      },
-      {
-        id: "thread-proxy-assistant-2",
-        role: "assistant",
-        content: [
-          "Нижнюю панель перестраиваю в духе desktop-compose toolbar:",
-          "слева quick actions и режим доступа",
-          "справа модель, effort, context и круглая send-кнопка",
-          "сам инпут делаю мягче и с большим радиусом",
-        ],
-        createdAt: runtimeNow - 26 * MINUTE,
-      },
-      {
-        id: "thread-proxy-user-3",
-        role: "user",
-        content: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
-        createdAt: runtimeNow - 24 * MINUTE,
-      },
-      {
-        id: "thread-proxy-assistant-3",
-        role: "assistant",
-        content: [
-          "Добавляю демонстрационный поток сообщений, чтобы центральная колонка ощущалась как реальная переписка, а не как статичный скрин.",
-          "Скролл остаётся только у chat-area, composer закреплён внизу и всегда доступен.",
-        ],
-        createdAt: runtimeNow - 23 * MINUTE,
-      },
-      {
-        id: "thread-proxy-assistant-4",
-        role: "assistant",
-        content: "Ниже несколько исходящих сообщений разной длины, чтобы проверить ширину bubble, переносы и соседство с аватаром.",
-        createdAt: runtimeNow - 22 * MINUTE,
-      },
-      {
-        id: "thread-proxy-user-4",
-        role: "user",
-        content: "Ок",
-        createdAt: runtimeMinute - 21 * MINUTE + 8 * 1000,
-      },
-      {
-        id: "thread-proxy-user-5",
-        role: "user",
-        content: "Короткий вопрос без переноса.",
-        createdAt: runtimeMinute - 21 * MINUTE + 22 * 1000,
-      },
-      {
-        id: "thread-proxy-user-6",
-        role: "user",
-        content: "Покажи, как чат будет выглядеть в скролле, когда сообщений станет больше.",
-        createdAt: runtimeMinute - 20 * MINUTE + 8 * 1000,
-      },
-      {
-        id: "thread-proxy-user-7",
-        role: "user",
-        content: "Сравни поведение длинного сообщения с несколькими частями: сначала обычная фраза, потом уточнение в середине и финальный короткий хвост.",
-        createdAt: runtimeMinute - 19 * MINUTE + 8 * 1000,
-      },
-      {
-        id: "thread-proxy-user-8",
-        role: "user",
-        content: "Здесь есть пунктуация, русский текст и English words inside, чтобы проверить ровность строк без ощущения фиксированной ширины.",
-        createdAt: runtimeMinute - 19 * MINUTE + 34 * 1000,
-      },
-      {
-        id: "thread-proxy-assistant-5",
-        role: "assistant",
-        content: "Если bubble выглядит как самостоятельная форма вокруг текста, значит измеритель работает правильно.",
-        createdAt: runtimeNow - 16 * MINUTE,
-      },
-      {
-        id: "thread-proxy-assistant-6",
-        role: "assistant",
-        content: "Ниже отдельный пример: пользователь пишет несколько сообщений в пределах одной минуты.",
-        createdAt: runtimeMinute - 15 * MINUTE + 5 * 1000,
-      },
-      {
-        id: "thread-proxy-user-9",
-        role: "user",
-        content: "Первое сообщение в пределах одной минуты.",
-        createdAt: runtimeMinute - 14 * MINUTE + 6 * 1000,
-      },
-      {
-        id: "thread-proxy-user-10",
-        role: "user",
-        content: "Сразу дописываю второе, без отдельного времени и кнопок под первым.",
-        createdAt: runtimeMinute - 14 * MINUTE + 24 * 1000,
-      },
-      {
-        id: "thread-proxy-user-11",
-        role: "user",
-        content: "И третье закрывает группу, поэтому время показывается только здесь.",
-        createdAt: runtimeMinute - 14 * MINUTE + 42 * 1000,
-      },
-    ],
-  },
-  {
-    id: "thread-mcp",
-    folderId: "folder-backend",
-    title: "Настройка MCP серверов",
-    status: "green",
-    favorite: false,
-    updatedAt: runtimeNow - 65 * MINUTE,
-    messages: [
-      {
-        id: "thread-mcp-user-1",
-        role: "user",
-        content: "Собери MCP конфиг для Linear и GitHub, чтобы он был безопасен для прототипа.",
-        createdAt: runtimeNow - 96 * MINUTE,
-      },
-      {
-        id: "thread-mcp-assistant-1",
-        role: "assistant",
-        content: [
-          "Подготовил безопасный минимальный состав MCP-подключений для демо.",
-          "Linear и GitHub вынесены в отдельные подключения с явными зонами ответственности.",
-          "UI в прототипе может показывать их как разные контексты проекта.",
-        ],
-        createdAt: runtimeNow - 95 * MINUTE,
-      },
-    ],
-  },
-  {
-    id: "thread-auth",
-    folderId: "folder-auth-gateway",
-    title: "Ротация service token",
-    status: "green",
-    favorite: true,
-    updatedAt: runtimeNow - 18 * MINUTE,
-    messages: [
-      {
-        id: "thread-auth-user-1",
-        role: "user",
-        content: "Разбей ротацию сервисного токена на безопасные шаги без downtime.",
-        createdAt: runtimeNow - 54 * MINUTE,
-      },
-      {
-        id: "thread-auth-assistant-1",
-        role: "assistant",
-        content: [
-          "Разложил миграцию на две фазы: выпуск нового секрета и мягкое переключение клиентов.",
-          "Параллельно держим старый токен валидным, пока метрики не покажут полное переключение.",
-        ],
-        createdAt: runtimeNow - 53 * MINUTE,
-      },
-    ],
-  },
-  {
-    id: "thread-release",
-    folderId: "folder-release-audit",
-    title: "Ревью регресса релиза",
-    status: "orange",
-    favorite: false,
-    updatedAt: runtimeNow - 42 * MINUTE,
-    messages: [
-      {
-        id: "thread-release-user-1",
-        role: "user",
-        content: "Собери короткий список блокеров перед вечерним релизом.",
-        createdAt: runtimeNow - 82 * MINUTE,
-      },
-      {
-        id: "thread-release-assistant-1",
-        role: "assistant",
-        content: [
-          "Собрал pre-release список и разбил риски на блокеры и деградации.",
-          "Главный фокус: сеть, миграции конфигурации и откат на stage-stand.",
-        ],
-        createdAt: runtimeNow - 80 * MINUTE,
-      },
-    ],
-  },
-  {
-    id: "thread-landing",
-    folderId: "folder-frontend",
-    title: "Редизайн hero-блока",
-    status: "green",
-    favorite: false,
-    updatedAt: runtimeNow - 155 * MINUTE,
-    messages: [
-      {
-        id: "thread-landing-user-1",
-        role: "user",
-        content: "Сделай hero более дорогим по ощущению, без перегруза.",
-        createdAt: runtimeNow - 188 * MINUTE,
-      },
-      {
-        id: "thread-landing-assistant-1",
-        role: "assistant",
-        content: [
-          "Сместил акцент в типографику и воздух, вместо тяжёлых карточек.",
-          "Главное впечатление теперь создают контраст, ритм и большие смысловые паузы.",
-        ],
-        createdAt: runtimeNow - 186 * MINUTE,
-      },
-    ],
-  },
-  {
-    id: "thread-hydration",
-    folderId: "root-web",
-    title: "SSR hydration fixes",
-    status: "green",
-    favorite: true,
-    updatedAt: runtimeNow - 14 * MINUTE,
-    messages: [
-      {
-        id: "thread-hydration-user-1",
-        role: "user",
-        content: "Поймай причины hydration mismatch в web-app и предложи безопасный фикс.",
-        createdAt: runtimeNow - 38 * MINUTE,
-      },
-      {
-        id: "thread-hydration-assistant-1",
-        role: "assistant",
-        content: [
-          "Сузил mismatch до client-only timestamps и условного рендера виджета.",
-          "Для прототипа хватит стабильного SSR значения и отложенного client patch после mount.",
-        ],
-        createdAt: runtimeNow - 37 * MINUTE,
-      },
-    ],
-  },
-  {
-    id: "thread-checkout",
-    folderId: "folder-checkout",
-    title: "Брошенные корзины",
-    status: "orange",
-    favorite: false,
-    updatedAt: runtimeNow - 205 * MINUTE,
-    messages: [
-      {
-        id: "thread-checkout-user-1",
-        role: "user",
-        content: "Покажи, как лучше восстанавливать checkout после refresh.",
-        createdAt: runtimeNow - 235 * MINUTE,
-      },
-      {
-        id: "thread-checkout-assistant-1",
-        role: "assistant",
-        content: [
-          "Для UX лучше сохранять восстановимый шаг и корзину, но не transient UI state.",
-          "Переоткрытие checkout должно возвращать пользователя на ближайший валидный шаг.",
-        ],
-        createdAt: runtimeNow - 232 * MINUTE,
-      },
-    ],
-  },
-  {
-    id: "thread-analytics",
-    folderId: "folder-analytics",
-    title: "События воронки",
-    status: "green",
-    favorite: false,
-    updatedAt: runtimeNow - 360 * MINUTE,
-    messages: [
-      {
-        id: "thread-analytics-user-1",
-        role: "user",
-        content: "Собери новую воронку по checkout и drop-off.",
-        createdAt: runtimeNow - 420 * MINUTE,
-      },
-      {
-        id: "thread-analytics-assistant-1",
-        role: "assistant",
-        content: [
-          "Разделил funnel на переходы по шагам, отмены и возвраты после ошибки.",
-          "В таком виде панель аналитики легче сопоставить с живым UI checkout.",
-        ],
-        createdAt: runtimeNow - 418 * MINUTE,
-      },
-    ],
-  },
-  {
-    id: "thread-onboarding",
-    folderId: "folder-onboarding",
-    title: "Первый run для партнёра",
-    status: "green",
-    favorite: false,
-    updatedAt: runtimeNow - 510 * MINUTE,
-    messages: [
-      {
-        id: "thread-onboarding-user-1",
-        role: "user",
-        content: "Подготовь сценарий первого запуска для нового партнёрского кабинета.",
-        createdAt: runtimeNow - 545 * MINUTE,
-      },
-      {
-        id: "thread-onboarding-assistant-1",
-        role: "assistant",
-        content: [
-          "Сценарий разбит на импорт данных, привязку ролей и первую проверку доступов.",
-          "Для прототипа это хороший пример отдельной корневой папки с собственной структурой.",
-        ],
-        createdAt: runtimeNow - 540 * MINUTE,
-      },
-    ],
-  },
-];
+function materializeProjectGroups(groups) {
+  const folders = [];
+  const threads = [];
+  let defaultThreadId = null;
+
+  const visitProject = (project, parentId, order) => {
+    const folderId = project.id;
+    const folder = {
+      id: folderId,
+      kind: parentId ? "folder" : "root",
+      name: project.title,
+      displayPath: parentId ? null : project.path,
+      path: project.path,
+      parentId,
+      expanded: project.expanded ?? true,
+      order,
+      source: "demo",
+    };
+
+    folders.push(folder);
+
+    (project.items ?? []).forEach((item, index) => {
+      if (item.kind === NodeType.PROJECT) {
+        visitProject(item, folderId, index);
+        return;
+      }
+
+      defaultThreadId ??= item.id;
+      threads.push({
+        id: item.id,
+        folderId,
+        title: item.title,
+        status: item.status,
+        favorite: item.favorite ?? false,
+        updatedAt: item.date,
+        messages: item.messages ?? [],
+      });
+    });
+  };
+
+  groups.forEach((group, index) => visitProject(group, null, index));
+
+  return { folders, threads, defaultThreadId };
+}
+
+const initialProjectTree = materializeProjectGroups(projectGroups);
+const initialFolders = initialProjectTree.folders;
+const initialThreads = initialProjectTree.threads;
+const defaultActiveThreadId = initialProjectTree.defaultThreadId;
 
 const initialFolderDrafts = {
   "folder:folder-release-audit": "Собери список рисков перед вечерним релизом и отдельно выдели блокеры.",
@@ -536,6 +421,19 @@ const continueOptions = [
   { id: "local", label: "Work locally", disabled: false },
   { id: "web", label: "Connect Codex web", disabled: false },
   { id: "cloud", label: "Send to cloud", disabled: true },
+];
+
+const branchOptions = [
+  {
+    id: "prototype-sidebar-polish",
+    label: "prototype/sidebar-polish",
+    description: "Файлов с незафиксированными изменениями: 5",
+  },
+  {
+    id: "main",
+    label: "main",
+    description: "Чистая ветка, готова к синхронизации",
+  },
 ];
 
 const themeOptions = [
@@ -739,26 +637,38 @@ function sortFoldersForParent(folders, parentId) {
     .sort((left, right) => left.order - right.order);
 }
 
+function getFolderChildEntries(folderId, folders, threads) {
+  const threadEntries = sortThreadsForFolder(threads, folderId).map((thread) => ({
+    key: `thread:${thread.id}`,
+    kind: "thread",
+    thread,
+  }));
+  const folderEntries = sortFoldersForParent(folders, folderId).map((folder) => ({
+    key: `folder:${folder.id}`,
+    kind: "folder",
+    folder,
+  }));
+
+  return [...threadEntries, ...folderEntries];
+}
+
 function countDirectThreads(folderId, threads) {
   return threads.filter((thread) => thread.folderId === folderId).length;
 }
 
-function countThreadsInFolderTree(folderId, folders, threads) {
-  let total = 0;
-  const queue = [folderId];
+function countVisibleItemsInFolderTree(folderId, folders, threads) {
+  const childFolders = sortFoldersForParent(folders, folderId);
+  const directThreadsCount = countDirectThreads(folderId, threads);
 
-  while (queue.length > 0) {
-    const currentFolderId = queue.shift();
-    total += threads.filter((thread) => thread.folderId === currentFolderId).length;
+  return childFolders.reduce((total, childFolder) => {
+    const childEntries = getFolderChildEntries(childFolder.id, folders, threads);
 
-    folders.forEach((folder) => {
-      if (folder.parentId === currentFolderId) {
-        queue.push(folder.id);
-      }
-    });
-  }
+    if (childEntries.length === 0) {
+      return total + 1;
+    }
 
-  return total;
+    return total + countVisibleItemsInFolderTree(childFolder.id, folders, threads);
+  }, directThreadsCount);
 }
 
 function expandFolderLineage(folders, folderId) {
@@ -861,6 +771,20 @@ function buildFolderDisplayPath(folderId, folders) {
   }
 
   return `${rootDisplayPath}/${trail.reverse().join("/")}`;
+}
+
+function buildVisibleRootEntries(folders, threads) {
+  return sortFoldersForParent(folders, null).map((rootFolder) => {
+    const visibleFolderId = getTopLevelVisibleFolderId(rootFolder.id, folders, threads);
+    const visibleFolder = getFolderById(folders, visibleFolderId) ?? rootFolder;
+
+    return {
+      key: `root:${rootFolder.id}`,
+      folder: visibleFolder,
+      displayPath: buildFolderDisplayPath(visibleFolder.id, folders),
+      totalThreads: countVisibleItemsInFolderTree(visibleFolder.id, folders, threads),
+    };
+  });
 }
 
 function getDraftTarget(targetKey, folders, pendingFolderTargets) {
@@ -1014,13 +938,16 @@ function GearIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path
-        d="M6.7 1.9h2.6l.4 1.6c.3.1.6.2.9.4l1.5-.8 1.3 1.9-1.2 1c.1.3.1.6.1.9s0 .6-.1.9l1.2 1-1.3 1.9-1.5-.8c-.3.2-.6.3-.9.4l-.4 1.6H6.7l-.4-1.6c-.3-.1-.6-.2-.9-.4l-1.5.8-1.3-1.9 1.2-1A3.8 3.8 0 0 1 3.7 8c0-.3 0-.6.1-.9l-1.2-1 1.3-1.9 1.5.8c.3-.2.6-.3.9-.4l.4-1.6Z"
+        d="M2.8 4.3h3.1M8.6 4.3h4.6M2.8 8h6.1M11.6 8h1.6M2.8 11.7h1.7M7.2 11.7h6"
         fill="none"
         stroke="currentColor"
+        strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth="1.15"
+        strokeWidth="1.25"
       />
-      <circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" strokeWidth="1.15" />
+      <circle cx="7.2" cy="4.3" r="1.25" fill="none" stroke="currentColor" strokeWidth="1.25" />
+      <circle cx="10.2" cy="8" r="1.25" fill="none" stroke="currentColor" strokeWidth="1.25" />
+      <circle cx="5.8" cy="11.7" r="1.25" fill="none" stroke="currentColor" strokeWidth="1.25" />
     </svg>
   );
 }
@@ -1099,36 +1026,16 @@ function CloudOffIcon() {
   );
 }
 
-function StarIcon({ filled = false }) {
+function PinIcon({ filled = false }) {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
       <path
-        d="m8 2.3 1.5 3.1 3.4.5-2.5 2.4.6 3.4L8 10.1l-3 1.6.6-3.4L3 5.9l3.4-.5L8 2.3Z"
-        fill={filled ? "currentColor" : "none"}
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth="1.15"
-      />
-    </svg>
-  );
-}
-
-function MessagePlusIcon() {
-  return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
-      <path
-        d="M3.4 3.2h9.2c.8 0 1.4.6 1.4 1.4v5.4c0 .8-.6 1.4-1.4 1.4H7l-2.6 2v-2H3.4c-.8 0-1.4-.6-1.4-1.4V4.6c0-.8.6-1.4 1.4-1.4Z"
-        fill="none"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth="1.2"
-      />
-      <path
-        d="M8 5.2v3.6M6.2 7h3.6"
+        d="m9.8 2.5 3.7 3.7-2.2.8-1.9 3.3.8.8-1.1 1.1-2.2-2.2-3.2 3.2-.9-.9L6 9.1 3.8 6.9l1.1-1.1.8.8L9 4.7l.8-2.2Z"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"
-        strokeWidth="1.2"
+        strokeLinejoin="round"
+        strokeWidth={filled ? "1.55" : "1.25"}
       />
     </svg>
   );
@@ -1294,6 +1201,34 @@ function CloseIcon() {
   );
 }
 
+function WindowMinimizeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M4 10.5h8"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeWidth="1.35"
+      />
+    </svg>
+  );
+}
+
+function WindowMaximizeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path
+        d="M5 5h6v6H5z"
+        fill="none"
+        stroke="currentColor"
+        strokeLinejoin="round"
+        strokeWidth="1.25"
+      />
+    </svg>
+  );
+}
+
 function ToggleSwitch({ checked }) {
   return (
     <span className={checked ? "toggle-switch toggle-switch--checked" : "toggle-switch"} aria-hidden="true">
@@ -1334,6 +1269,54 @@ function ComposerMenu({ title, options, selectedId, onSelect, className = "", sh
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function BranchMenu({ selectedBranchId, onSelectBranch }) {
+  return (
+    <div className="branch-menu composer-menu composer-menu--left">
+      <label className="branch-menu__search">
+        <span className="branch-menu__search-icon">
+          <SearchIcon />
+        </span>
+        <span>Поиск ветвей</span>
+      </label>
+
+      <div className="branch-menu__section-label">Ветки</div>
+
+      <div className="branch-menu__options">
+        {branchOptions.map((branch) => {
+          const isSelected = branch.id === selectedBranchId;
+
+          return (
+            <button
+              key={branch.id}
+              className={isSelected ? "branch-menu__option branch-menu__option--selected" : "branch-menu__option"}
+              type="button"
+              onClick={() => onSelectBranch(branch.id)}
+            >
+              <span className="branch-menu__option-icon">
+                <BranchIcon />
+              </span>
+              <span className="branch-menu__option-copy">
+                <span className="branch-menu__option-title">{branch.label}</span>
+                <span className="branch-menu__option-description">{branch.description}</span>
+              </span>
+              <span className="branch-menu__option-mark">{isSelected ? <CheckIcon /> : null}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="branch-menu__divider" />
+
+      <button className="branch-menu__create" type="button">
+        <span className="branch-menu__create-icon">
+          <PlusIcon />
+        </span>
+        <span>Создать и переключиться на новую ветку...</span>
+      </button>
     </div>
   );
 }
@@ -1428,174 +1411,327 @@ function QuickActionsMenu({
   );
 }
 
-function ThreadRow({ thread, isActive, isLastItem = false, onSelect, onToggleFavorite }) {
-  const threadRowClassName = [
-    "thread-row",
-    isActive ? "thread-row--active" : null,
-    isLastItem ? "thread-row--last" : null,
-  ]
-    .filter(Boolean)
-    .join(" ");
+function SidebarTree({
+  rootEntries,
+  folders,
+  threads,
+  activeThreadId,
+  onToggleExpanded,
+  onOpenDraft,
+  onSelectThread,
+  onToggleFavorite,
+  onToggleProjectFavorite,
+}) {
+  return (
+    <div className="sidebar-tree">
+      {rootEntries.map((entry, index) => (
+        <NodeFrame
+          key={entry.key}
+          entry={entry}
+          nodeKey={entry.folder.path}
+          depth={0}
+          isLast={index === rootEntries.length - 1}
+          folders={folders}
+          threads={threads}
+          activeThreadId={activeThreadId}
+          onToggleExpanded={onToggleExpanded}
+          onOpenDraft={onOpenDraft}
+          onSelectThread={onSelectThread}
+          onToggleFavorite={onToggleFavorite}
+          onToggleProjectFavorite={onToggleProjectFavorite}
+        />
+      ))}
+    </div>
+  );
+}
+
+function NodeFrame({
+  entry,
+  nodeKey,
+  depth,
+  isLast,
+  folders,
+  threads,
+  activeThreadId,
+  onToggleExpanded,
+  onOpenDraft,
+  onSelectThread,
+  onToggleFavorite,
+  onToggleProjectFavorite,
+}) {
+  if (entry.kind === "thread") {
+    return (
+      <ChatFrame
+        thread={entry.thread}
+        nodeKey={nodeKey}
+        isActive={entry.thread.id === activeThreadId}
+        isLast={isLast}
+        onSelectThread={onSelectThread}
+        onToggleFavorite={onToggleFavorite}
+      />
+    );
+  }
 
   return (
-    <article
-      className={threadRowClassName}
-      role="button"
-      tabIndex={0}
-      onClick={onSelect}
-      onKeyDown={getKeyActionHandler(onSelect)}
-    >
-      <span className="thread-row__icon">
-        <MessageIcon />
-      </span>
+    <ProjectFrame
+      entry={entry}
+      nodeKey={nodeKey}
+      depth={depth}
+      isLast={isLast}
+      folders={folders}
+      threads={threads}
+      activeThreadId={activeThreadId}
+      onToggleExpanded={onToggleExpanded}
+      onOpenDraft={onOpenDraft}
+      onSelectThread={onSelectThread}
+      onToggleFavorite={onToggleFavorite}
+      onToggleProjectFavorite={onToggleProjectFavorite}
+    />
+  );
+}
 
-      <div className="thread-row__content">
-        <div className="thread-row__title">
-          <strong>{thread.title}</strong>
+function ProjectFrame({
+  entry,
+  nodeKey,
+  depth,
+  isLast,
+  folders,
+  threads,
+  activeThreadId,
+  onToggleExpanded,
+  onOpenDraft,
+  onSelectThread,
+  onToggleFavorite,
+  onToggleProjectFavorite,
+}) {
+  const { folder } = entry;
+  const isRoot = depth === 0;
+  const childEntries = getFolderChildEntries(folder.id, folders, threads);
+  const hasChildren = childEntries.length > 0;
+  const isCollapsed = hasChildren && !folder.expanded;
+  const displayPath = isRoot ? entry.displayPath : null;
+  const visibleCount = isRoot ? entry.totalThreads : undefined;
+
+  return (
+    <section
+      className={`tree-node project-node ${hasChildren ? "" : "is-empty"} ${
+        isCollapsed ? "is-collapsed" : ""
+      } depth-${depth} ${isRoot ? "is-root" : ""} ${isLast ? "is-last-child" : ""}`}
+    >
+      <NodeRail
+        nodeKind={NodeType.PROJECT}
+        title={folder.name}
+        isCollapsed={isCollapsed}
+        onToggle={() => onToggleExpanded(folder.id)}
+      />
+      <ProjectContent
+        folder={folder}
+        nodeKey={nodeKey}
+        displayPath={displayPath}
+        visibleCount={visibleCount}
+        childEntries={childEntries}
+        isRoot={isRoot}
+        isCollapsed={isCollapsed}
+        hasChildren={hasChildren}
+        depth={depth}
+        folders={folders}
+        threads={threads}
+        activeThreadId={activeThreadId}
+        onToggleExpanded={onToggleExpanded}
+        onOpenDraft={onOpenDraft}
+        onSelectThread={onSelectThread}
+        onToggleFavorite={onToggleFavorite}
+        onToggleProjectFavorite={onToggleProjectFavorite}
+      />
+    </section>
+  );
+}
+
+function ProjectContent({
+  folder,
+  nodeKey,
+  displayPath,
+  visibleCount,
+  childEntries,
+  isRoot,
+  isCollapsed,
+  hasChildren,
+  depth,
+  folders,
+  threads,
+  activeThreadId,
+  onToggleExpanded,
+  onOpenDraft,
+  onSelectThread,
+  onToggleFavorite,
+  onToggleProjectFavorite,
+}) {
+  return (
+    <div className="node-body">
+      <ProjectHeader
+        folder={folder}
+        displayPath={displayPath}
+        isRoot={isRoot}
+        visibleCount={visibleCount}
+        onToggleProjectFavorite={onToggleProjectFavorite}
+      />
+      {hasChildren && !isCollapsed ? (
+        <ProjectChildren
+          entries={childEntries}
+          parentKey={nodeKey}
+          depth={depth}
+          isRoot={isRoot}
+          folders={folders}
+          threads={threads}
+          activeThreadId={activeThreadId}
+          onToggleExpanded={onToggleExpanded}
+          onOpenDraft={onOpenDraft}
+          onSelectThread={onSelectThread}
+          onToggleFavorite={onToggleFavorite}
+          onToggleProjectFavorite={onToggleProjectFavorite}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ProjectHeader({ folder, displayPath, isRoot, visibleCount, onToggleProjectFavorite }) {
+  return (
+    <div className={`project-heading ${isRoot ? "project-heading--root" : "project-heading--folder"}`}>
+      <div className="project-copy">
+        <h1>{folder.name}</h1>
+        {displayPath ? <p>{displayPath}</p> : null}
+      </div>
+      <div className="project-heading__actions">
+        {visibleCount === undefined ? null : <span className="counter">{visibleCount}</span>}
+        <button
+          className={`pin project-pin ${folder.favorite ? "filled" : ""}`}
+          type="button"
+          aria-label={folder.favorite ? "Убрать проект из избранного" : "Добавить проект в избранное"}
+          aria-pressed={Boolean(folder.favorite)}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleProjectFavorite(folder.id);
+          }}
+        >
+          <PinIcon filled={folder.favorite} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ProjectChildren({
+  entries,
+  parentKey,
+  depth,
+  isRoot,
+  folders,
+  threads,
+  activeThreadId,
+  onToggleExpanded,
+  onOpenDraft,
+  onSelectThread,
+  onToggleFavorite,
+  onToggleProjectFavorite,
+}) {
+  return (
+    <nav className="node-children" aria-label={isRoot ? "Список задач codex-agent" : undefined}>
+      {entries.map((entry, index) => {
+        const childKey = getTreeNodeKey(parentKey, entry);
+
+        return (
+          <NodeFrame
+            key={entry.key}
+            entry={entry}
+            nodeKey={childKey}
+            depth={depth + 1}
+            isLast={index === entries.length - 1}
+            folders={folders}
+            threads={threads}
+            activeThreadId={activeThreadId}
+            onToggleExpanded={onToggleExpanded}
+            onOpenDraft={onOpenDraft}
+            onSelectThread={onSelectThread}
+            onToggleFavorite={onToggleFavorite}
+            onToggleProjectFavorite={onToggleProjectFavorite}
+          />
+        );
+      })}
+    </nav>
+  );
+}
+
+function ChatFrame({ thread, nodeKey, isActive, isLast, onSelectThread, onToggleFavorite }) {
+  return (
+    <article className={`tree-node chat-node ${isActive ? "is-active" : ""} ${isLast ? "is-last-child" : ""}`}>
+      <NodeRail nodeKind={NodeType.CHAT} title={thread.title} />
+      <div className="node-body">
+        <div
+          className="chat-card"
+          role="button"
+          tabIndex={0}
+          onClick={() => onSelectThread(thread.id)}
+          onKeyDown={getKeyActionHandler(() => onSelectThread(thread.id))}
+        >
+          <div className="chat-content">
+            <h2>{thread.title}</h2>
+            <p>
+              <time dateTime={new Date(thread.updatedAt).toISOString()}>{formatRelativeTime(thread.updatedAt)}</time>
+              <span className={`status-dot ${thread.status}`} aria-hidden="true" />
+            </p>
+          </div>
+
           <button
-            className={thread.favorite ? "thread-row__favorite thread-row__favorite--active" : "thread-row__favorite"}
+            className={`pin ${thread.favorite ? "filled" : ""}`}
             type="button"
             aria-label={thread.favorite ? "Убрать из избранного" : "Добавить в избранное"}
             aria-pressed={thread.favorite}
             onClick={(event) => {
               event.stopPropagation();
-              onToggleFavorite();
+              onToggleFavorite(thread.id);
             }}
           >
-            <StarIcon filled={thread.favorite} />
+            <PinIcon filled={thread.favorite} />
           </button>
-        </div>
-
-        <div className="thread-row__meta">
-          <span className="thread-row__time">{formatRelativeTime(thread.updatedAt)}</span>
-          <span className={`presence-dot presence-dot--${thread.status}`} />
         </div>
       </div>
     </article>
   );
 }
 
-function FolderTree({
-  folder,
-  folders,
-  threads,
-  activeThreadId,
-  displayPath,
-  renderAsRoot,
-  isLastItem = false,
-  onToggleExpanded,
-  onOpenDraft,
-  onSelectThread,
-  onToggleFavorite,
-}) {
-  const directThreads = sortThreadsForFolder(threads, folder.id);
-  const childFolders = sortFoldersForParent(folders, folder.id);
-  const totalThreads = countThreadsInFolderTree(folder.id, folders, threads);
-  const isRoot = renderAsRoot;
-  const toggleFolder = () => onToggleExpanded(folder.id);
-  const openDraft = () => onOpenDraft(folder.id);
-  const folderTreeClassName = isRoot
-    ? "project-entry"
-    : isLastItem
-      ? "folder-row folder-row--last"
-      : "folder-row";
+function NodeRail({ nodeKind, title, isCollapsed = false, onToggle }) {
+  if (nodeKind === NodeType.CHAT) {
+    return (
+      <div className="node-rail" aria-hidden="true">
+        <span className="rail-line" />
+        <span className="node-marker chat-marker" aria-hidden="true">
+          <MessageIcon />
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <section className={folderTreeClassName}>
-      <div
-        className={isRoot ? "project-entry__head project-entry__head--interactive" : "folder-row__head"}
-        role="button"
-        tabIndex={0}
-        onClick={toggleFolder}
-        onKeyDown={getKeyActionHandler(toggleFolder)}
+    <div className="node-rail">
+      <span className="rail-line" aria-hidden="true" />
+      <button
+        className="node-marker project-toggle"
+        type="button"
+        aria-label={isCollapsed ? `Развернуть ${title}` : `Свернуть ${title}`}
+        aria-expanded={!isCollapsed}
+        onClick={onToggle}
       >
-        {isRoot ? (
-          <>
-            <div className="project-entry__meta">
-              <span className="tree-icon tree-icon--small">
-                {folder.expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-              </span>
-              <div className="project-entry__text">
-                <strong>{folder.name}</strong>
-                <p>{displayPath ?? buildFolderDisplayPath(folder.id, folders)}</p>
-              </div>
-            </div>
-
-            <div className="project-entry__actions">
-              <button
-                className="folder-quick-button folder-quick-button--root"
-                type="button"
-                aria-label={`Создать чат в папке ${folder.name}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openDraft();
-                }}
-              >
-                <MessagePlusIcon />
-              </button>
-
-              <span className="count-badge">{totalThreads}</span>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="folder-row__title-wrap">
-              <span className="tree-icon tree-icon--small">
-                {folder.expanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-              </span>
-              <span className="folder-row__title">{folder.name}</span>
-            </div>
-
-            <div className="folder-row__actions">
-              <button
-                className="folder-quick-button"
-                type="button"
-                aria-label={`Создать чат в папке ${folder.name}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openDraft();
-                }}
-              >
-                <MessagePlusIcon />
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {folder.expanded ? (
-        <div className={isRoot ? "folder-children folder-children--root" : "folder-children"}>
-          {directThreads.map((thread, index) => (
-            <ThreadRow
-              key={thread.id}
-              thread={thread}
-              isActive={thread.id === activeThreadId}
-              isLastItem={childFolders.length === 0 && index === directThreads.length - 1}
-              onSelect={() => onSelectThread(thread.id)}
-              onToggleFavorite={() => onToggleFavorite(thread.id)}
-            />
-          ))}
-
-          {childFolders.map((childFolder, index) => (
-            <FolderTree
-              key={childFolder.id}
-              folder={childFolder}
-              folders={folders}
-              threads={threads}
-              activeThreadId={activeThreadId}
-              displayPath={null}
-              renderAsRoot={false}
-              isLastItem={index === childFolders.length - 1}
-              onToggleExpanded={onToggleExpanded}
-              onOpenDraft={onOpenDraft}
-              onSelectThread={onSelectThread}
-              onToggleFavorite={onToggleFavorite}
-            />
-          ))}
-        </div>
-      ) : null}
-    </section>
+        <span className="project-marker">{isCollapsed ? <ChevronRightIcon /> : <ChevronDownIcon />}</span>
+      </button>
+    </div>
   );
+}
+
+function getTreeNodeKey(parentKey, entry) {
+  const segment = entry.kind === "folder" ? entry.folder.path : entry.thread.title;
+
+  return `${parentKey}/${segment}`;
 }
 
 function getMessageMinuteKey(message) {
@@ -1775,11 +1911,14 @@ function UserMessage({ content, time, compactTop = false, showAvatar = true, sho
       const horizontalPadding =
         (parseFloat(messageStyles.paddingLeft) || 0) + (parseFloat(messageStyles.paddingRight) || 0);
       const maxBorderBoxWidth = messageBlock.getBoundingClientRect().width * USER_MESSAGE_MAX_WIDTH_RATIO;
-      const maxContentWidth = Math.max(0, maxBorderBoxWidth - horizontalPadding);
+      const maxContentWidth = Math.max(0, maxBorderBoxWidth - horizontalPadding - USER_MESSAGE_WIDTH_GUARD);
       const nextWrappedMessage = buildUserMessageWrap(content, messageStyles.font, maxContentWidth);
 
       if (nextWrappedMessage.width) {
-        nextWrappedMessage.width = Math.min(maxBorderBoxWidth, nextWrappedMessage.width + horizontalPadding);
+        nextWrappedMessage.width = Math.min(
+          maxBorderBoxWidth,
+          nextWrappedMessage.width + horizontalPadding + USER_MESSAGE_WIDTH_GUARD,
+        );
       }
 
       setWrappedMessage((currentWrappedMessage) => {
@@ -2226,10 +2365,13 @@ function resizeComposer(chatArea, renderSurface, composerBox, composerFooter, co
   const renderSurfaceOverlap = renderSurface
     ? parseFloat(window.getComputedStyle(renderSurface).getPropertyValue("--composer-surface-overlap")) || 0
     : 0;
+  const composerBottomOffset =
+    parseFloat(window.getComputedStyle(chatArea).getPropertyValue("--composer-bottom-offset")) || 0;
   const composerReservedSpace =
     composerBox.offsetHeight +
     renderSurfaceHeight -
     Math.min(renderSurfaceHeight, renderSurfaceOverlap) +
+    composerBottomOffset +
     22;
   chatArea.style.setProperty("--composer-reserved-space", `${composerReservedSpace}px`);
 }
@@ -2240,11 +2382,12 @@ export default function App() {
   const [threadDrafts, setThreadDrafts] = useState(() => ({}));
   const [folderDrafts, setFolderDrafts] = useState(() => initialFolderDrafts);
   const [pendingFolderTargets, setPendingFolderTargets] = useState(() => []);
-  const [activePane, setActivePane] = useState(() => ({ type: "thread", threadId: "thread-proxy" }));
+  const [activePane, setActivePane] = useState(() => ({ type: "thread", threadId: defaultActiveThreadId }));
   const [openMenu, setOpenMenu] = useState(null);
   const [includeIdeContext, setIncludeIdeContext] = useState(true);
   const [planMode, setPlanMode] = useState(false);
   const [selectedPermission, setSelectedPermission] = useState("default");
+  const [selectedBranch, setSelectedBranch] = useState("prototype-sidebar-polish");
   const [selectedModel, setSelectedModel] = useState("gpt-5.4");
   const [selectedReasoning, setSelectedReasoning] = useState("high");
   const [selectedContinueMode, setSelectedContinueMode] = useState("local");
@@ -2279,17 +2422,7 @@ export default function App() {
     pendingFolderTargetsRef.current = pendingFolderTargets;
   }, [pendingFolderTargets]);
 
-  const rootFolders = sortFoldersForParent(folders, null);
-  const visibleSidebarRoots = rootFolders.map((rootFolder) => {
-    const visibleFolderId = getTopLevelVisibleFolderId(rootFolder.id, folders, threads);
-    const visibleFolder = getFolderById(folders, visibleFolderId) ?? rootFolder;
-
-    return {
-      id: rootFolder.id,
-      folder: visibleFolder,
-      displayPath: buildFolderDisplayPath(visibleFolder.id, folders),
-    };
-  });
+  const rootEntries = buildVisibleRootEntries(folders, threads);
   const activeThread = activePane.type === "thread" ? getThreadById(threads, activePane.threadId) : null;
   const activeDraftTarget = activePane.type === "draft" ? getDraftTarget(activePane.targetKey, folders, pendingFolderTargets) : null;
   const activeComposerText =
@@ -2301,6 +2434,7 @@ export default function App() {
   const isDirectoryPickerAvailable =
     typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
   const selectedPermissionLabel = getSelectedLabel(permissionOptions, selectedPermission);
+  const selectedBranchOption = branchOptions.find((branch) => branch.id === selectedBranch) ?? branchOptions[0];
   const selectedModelLabel = getSelectedLabel(modelOptions, selectedModel);
   const selectedReasoningLabel = getSelectedLabel(reasoningOptions, selectedReasoning);
   const activeRenderSurface =
@@ -2526,6 +2660,16 @@ export default function App() {
       setThreads((currentThreads) =>
         currentThreads.map((thread) =>
           thread.id === threadId ? { ...thread, favorite: !thread.favorite } : thread,
+        ),
+      );
+    });
+  };
+
+  const handleToggleProjectFavorite = (folderId) => {
+    startTransition(() => {
+      setFolders((currentFolders) =>
+        currentFolders.map((folder) =>
+          folder.id === folderId ? { ...folder, favorite: !folder.favorite } : folder,
         ),
       );
     });
@@ -2816,12 +2960,38 @@ export default function App() {
   const composerPlaceholder =
     activePane.type === "draft" ? "Напишите первое сообщение, чтобы создать чат..." : "Спросите у агента что-нибудь...";
   const sendButtonDisabled = activeComposerText.trim().length === 0;
+  const activeFolderPath =
+    activeThread?.folderId
+      ? buildFolderDisplayPath(activeThread.folderId, folders)
+      : activeDraftTarget?.kind === "folder"
+        ? buildFolderDisplayPath(activeDraftTarget.folderId, folders)
+        : activeDraftTarget?.kind === "pending-folder"
+          ? activeDraftTarget.name
+          : "Codex Agent";
 
   return (
     <div className="app-root" data-theme={selectedTheme}>
       <div className="window-caption">Дизайн приложения-агента</div>
 
       <div className="desktop-window">
+        <div className="window-toolbar" aria-label="Панель окна">
+          <div className="window-toolbar__path" title={activeFolderPath}>
+            {activeFolderPath}
+          </div>
+
+          <div className="window-toolbar__controls">
+            <button className="window-control" type="button" aria-label="Свернуть окно">
+              <WindowMinimizeIcon />
+            </button>
+            <button className="window-control" type="button" aria-label="Развернуть окно">
+              <WindowMaximizeIcon />
+            </button>
+            <button className="window-control window-control--close" type="button" aria-label="Закрыть окно">
+              <CloseIcon />
+            </button>
+          </div>
+        </div>
+
         <aside className="sidebar">
           <div className="sidebar-top">
             <div className="sidebar-title-row">
@@ -2841,42 +3011,38 @@ export default function App() {
               <span className="search-field__icon">
                 <SearchIcon />
               </span>
-              <span className="search-field__placeholder">Поиск...</span>
+              <span className="search-field__placeholder">Поиск</span>
             </label>
+
+            <button
+              className="sidebar-action-row"
+              type="button"
+              aria-label="Новый чат"
+              disabled={!isDirectoryPickerAvailable}
+              onClick={() => {
+                void handleOpenFolderPicker();
+              }}
+            >
+              <span className="sidebar-action-row__icon">
+                <PlusIcon />
+              </span>
+              <span>Новый чат</span>
+            </button>
           </div>
 
           <div className="sidebar-body">
-            <div className="sidebar-section-label sidebar-section-label--tight">
-              <span>Новый чат</span>
-              <button
-                className="tiny-icon-button"
-                type="button"
-                aria-label="Новый чат"
-                disabled={!isDirectoryPickerAvailable}
-                onClick={() => {
-                  void handleOpenFolderPicker();
-                }}
-              >
-                <PlusIcon />
-              </button>
-            </div>
-
             <section className="tree-block">
-              {visibleSidebarRoots.map((entry) => (
-                <FolderTree
-                  key={entry.id}
-                  folder={entry.folder}
-                  folders={folders}
-                  threads={threads}
-                  activeThreadId={activeThread?.id ?? null}
-                  displayPath={entry.displayPath}
-                  renderAsRoot
-                  onToggleExpanded={handleToggleExpanded}
-                  onOpenDraft={openDraftForFolder}
-                  onSelectThread={handleSelectThread}
-                  onToggleFavorite={handleToggleFavorite}
-                />
-              ))}
+              <SidebarTree
+                rootEntries={rootEntries}
+                folders={folders}
+                threads={threads}
+                activeThreadId={activeThread?.id ?? null}
+                onToggleExpanded={handleToggleExpanded}
+                onOpenDraft={openDraftForFolder}
+                onSelectThread={handleSelectThread}
+                onToggleFavorite={handleToggleFavorite}
+                onToggleProjectFavorite={handleToggleProjectFavorite}
+              />
             </section>
           </div>
         </aside>
@@ -3023,9 +3189,50 @@ export default function App() {
                       />
                     ) : null}
                   </div>
+
+                  <div className="composer-menu-anchor composer-menu-anchor--left">
+                    <button
+                      className="branch-switcher"
+                      type="button"
+                      aria-label="Переключить ветку"
+                      aria-expanded={openMenu === "branch"}
+                      onClick={() => setOpenMenu((currentMenu) => (currentMenu === "branch" ? null : "branch"))}
+                    >
+                      <span className="branch-switcher__icon">
+                        <BranchIcon />
+                      </span>
+                      <span className="branch-switcher__label">{selectedBranchOption.label}</span>
+                      <span className="branch-switcher__chevron">
+                        <ChevronDownIcon />
+                      </span>
+                    </button>
+
+                    {openMenu === "branch" ? (
+                      <BranchMenu
+                        selectedBranchId={selectedBranch}
+                        onSelectBranch={(branchId) => {
+                          setSelectedBranch(branchId);
+                          setOpenMenu(null);
+                        }}
+                      />
+                    ) : null}
+                  </div>
                 </div>
 
                 <div className="composer-footer__right">
+                  <button className="composer-usage" type="button" aria-label="Использование контекстного окна">
+                    <span className="composer-usage__ring" aria-hidden="true">
+                    </span>
+                    <span className="composer-usage__value">73%</span>
+                    <span className="composer-usage__tooltip" role="tooltip">
+                      <span>Остаток контекста:</span>
+                      <strong>73% доступно</strong>
+                      <span>5-часовой лимит: 41% осталось</span>
+                      <span>Недельный лимит: 68% осталось</span>
+                      <span>Следующее обновление 5ч окна через 2ч 15м</span>
+                    </span>
+                  </button>
+
                   <div className="composer-menu-anchor composer-menu-anchor--right">
                     <button
                       className="composer-pill composer-pill--filled"
