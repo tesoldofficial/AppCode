@@ -451,6 +451,19 @@ const themeOptions = [
   },
 ];
 
+const chatSurfaceOptions = [
+  {
+    id: "inside",
+    label: "Inside",
+    description: "Панель утоплена в общее полотно.",
+  },
+  {
+    id: "outside",
+    label: "Outside",
+    description: "Панель лежит поверх полотна отдельным слоем.",
+  },
+];
+
 let runtimeId = 0;
 
 function makeId(prefix) {
@@ -2197,7 +2210,14 @@ function EmptyCanvas({ target, folders, draftValue }) {
   );
 }
 
-function SettingsModal({ isOpen, selectedTheme, onClose, onSelectTheme }) {
+function SettingsModal({
+  isOpen,
+  selectedTheme,
+  selectedChatSurface,
+  onClose,
+  onSelectTheme,
+  onSelectChatSurface,
+}) {
   if (!isOpen) {
     return null;
   }
@@ -2241,9 +2261,7 @@ function SettingsModal({ isOpen, selectedTheme, onClose, onSelectTheme }) {
             <div>
               <p className="settings-modal__eyebrow">General</p>
               <h2 id="settings-modal-title">General</h2>
-              <p className="settings-modal__description">
-                Базовые настройки интерфейса прототипа. Пока здесь только смена темы.
-              </p>
+              <p className="settings-modal__description">Базовые настройки интерфейса прототипа.</p>
             </div>
 
             <button
@@ -2285,6 +2303,54 @@ function SettingsModal({ isOpen, selectedTheme, onClose, onSelectTheme }) {
                       {option.swatches.map((swatch) => (
                         <span key={swatch} className="theme-option__swatch" style={{ background: swatch }} />
                       ))}
+                    </span>
+
+                    <span className="theme-option__body">
+                      <span className="theme-option__title-row">
+                        <span className="theme-option__label">{option.label}</span>
+                        {isSelected ? <span className="theme-option__status">Active</span> : null}
+                      </span>
+                      <span className="theme-option__description">{option.description}</span>
+                    </span>
+
+                    <span className="theme-option__indicator" aria-hidden="true">
+                      {isSelected ? <CheckIcon /> : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="settings-section">
+            <div className="settings-section__head">
+              <div>
+                <p className="settings-section__eyebrow">Layout</p>
+                <h3>Chat panel</h3>
+              </div>
+
+              <p className="settings-section__description">Выбирает, как окно чата лежит на общем полотне.</p>
+            </div>
+
+            <div className="theme-options chat-surface-options" role="radiogroup" aria-label="Chat panel surface">
+              {chatSurfaceOptions.map((option) => {
+                const isSelected = option.id === selectedChatSurface;
+
+                return (
+                  <button
+                    key={option.id}
+                    className={isSelected ? "theme-option theme-option--active" : "theme-option"}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => onSelectChatSurface(option.id)}
+                  >
+                    <span
+                      className={`chat-surface-option__preview chat-surface-option__preview--${option.id}`}
+                      aria-hidden="true"
+                    >
+                      <span className="chat-surface-option__sidebar" />
+                      <span className="chat-surface-option__panel" />
                     </span>
 
                     <span className="theme-option__body">
@@ -2392,6 +2458,7 @@ export default function App() {
   const [selectedReasoning, setSelectedReasoning] = useState("high");
   const [selectedContinueMode, setSelectedContinueMode] = useState("local");
   const [selectedTheme, setSelectedTheme] = useState("grey");
+  const [selectedChatSurface, setSelectedChatSurface] = useState("inside");
   const [threadRenderSurfaces, setThreadRenderSurfaces] = useState(() => initialThreadRenderSurfaces);
   const [collapsedRenderSurfaces, setCollapsedRenderSurfaces] = useState(() => ({}));
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -2922,6 +2989,16 @@ export default function App() {
     });
   };
 
+  const handleSelectChatSurface = (surfaceId) => {
+    if (surfaceId === selectedChatSurface) {
+      return;
+    }
+
+    startTransition(() => {
+      setSelectedChatSurface(surfaceId);
+    });
+  };
+
   const handleChatScrollThumbPointerDown = (event) => {
     const chatContent = chatContentRef.current;
 
@@ -2970,7 +3047,7 @@ export default function App() {
           : "Codex Agent";
 
   return (
-    <div className="app-root" data-theme={selectedTheme}>
+    <div className="app-root" data-theme={selectedTheme} data-chat-surface={selectedChatSurface}>
       <div className="window-caption">Дизайн приложения-агента</div>
 
       <div className="desktop-window">
@@ -3325,8 +3402,10 @@ export default function App() {
         <SettingsModal
           isOpen={isSettingsOpen}
           selectedTheme={selectedTheme}
+          selectedChatSurface={selectedChatSurface}
           onClose={() => setIsSettingsOpen(false)}
           onSelectTheme={handleSelectTheme}
+          onSelectChatSurface={handleSelectChatSurface}
         />
       </div>
     </div>
